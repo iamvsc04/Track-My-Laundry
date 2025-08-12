@@ -2,15 +2,29 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const {
+  securityMiddleware,
+  corsOptions,
+} = require("./middlewares/securityMiddleware");
 const authRoutes = require("./routes/authRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const shelfRoutes = require("./routes/shelfRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// CORS must run before any other middleware to properly handle preflight
+app.use(cors(corsOptions));
+// Handle preflight for all routes (Express 5 compatible)
+app.options(/.*/, cors(corsOptions));
+
+// Security Middleware
+app.use(securityMiddleware);
+
+// Body parsing middleware with size limits
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // MongoDB Connection
 mongoose
@@ -26,9 +40,38 @@ app.get("/", (req, res) => {
   res.send("TrackMyLaundry API is running");
 });
 
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.json({
+    status: "OK",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
+// API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/shelves", shelfRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/notifications", notificationRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    message: "Something went wrong!",
+    error:
+      process.env.NODE_ENV === "development"
+        ? err.message
+        : "Internal server error",
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ message: "Route not found" });
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

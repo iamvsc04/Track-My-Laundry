@@ -1,30 +1,42 @@
 const express = require("express");
 const router = express.Router();
-const orderController = require("../controllers/orderController");
 const auth = require("../middlewares/authMiddleware");
+const {
+  createOrder,
+  getUserOrders,
+  getOrderById,
+  updateOrderStatus,
+  updateOrderPriority,
+  cancelOrder,
+  getOrderAnalytics,
+  scanNfcTag,
+} = require("../controllers/orderController");
 
-// All routes protected
+// Protected routes - require authentication
 router.use(auth);
 
-// User creates order (NFC-triggered)
-router.post("/", orderController.createOrder);
+// Create new order
+router.post("/", createOrder);
 
-// User gets their orders
-router.get("/", orderController.getUserOrders);
+// Get user's orders with filtering and pagination
+router.get("/", getUserOrders);
 
-// Admin gets all orders
-router.get("/all", orderController.getAllOrders);
+// Get order analytics
+router.get("/analytics", getOrderAnalytics);
 
-// Get order by ID (admin or owner)
-router.get("/:id", orderController.getOrderById);
+// Get specific order by ID
+router.get("/:id", getOrderById);
 
-// Admin/worker updates order status
-router.patch("/:id", orderController.updateOrderStatus);
+// Update order status
+router.patch("/:id/status", updateOrderStatus);
 
-// Create order with NFC tag (NFC invocation)
-router.post("/nfc-invoke", orderController.createOrderWithNfc);
+// Update order priority (admin only)
+router.patch("/:id/priority", updateOrderPriority);
 
-// Mark order as completed and free NFC tag
-router.patch("/:id/complete", orderController.completeOrder);
+// Cancel order
+router.patch("/:id/cancel", cancelOrder);
+
+// NFC tag scanning
+router.post("/scan-nfc", scanNfcTag);
 
 module.exports = router;

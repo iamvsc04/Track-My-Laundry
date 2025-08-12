@@ -1,41 +1,82 @@
 const User = require("../models/User");
+const Verification = require("../models/Verification");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/sendEmail");
 const sendSMS = require("../utils/sendSMS");
+const crypto = require("crypto");
+
+// Generate a unique 6-digit OTP for email verification among non-expired records
+async function generateUniqueEmailOtp() {
+  const now = new Date();
+  for (let i = 0; i < 5; i += 1) {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const exists = await Verification.findOne({
+      contactType: "email",
+      otp,
+      expiresAt: { $gt: now },
+    }).lean();
+    if (!exists) return otp;
+  }
+  // Extremely unlikely fallback: 7-digit OTP
+  return Math.floor(1000000 + Math.random() * 9000000).toString();
+}
 
 exports.register = async (req, res) => {
   try {
     const { name, email, mobile, password } = req.body;
+
+    // Check duplicates
     const existingUser = await User.findOne({ $or: [{ email }, { mobile }] });
-    if (existingUser)
+    if (existingUser) {
       return res
         .status(400)
         .json({ message: "Email or mobile already in use" });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    const emailOTP = Math.floor(100000 + Math.random() * 900000).toString();
-    const mobileOTP = Math.floor(100000 + Math.random() * 900000).toString();
     const user = new User({
       name,
       email,
       mobile,
       password: hashedPassword,
-      emailOTP,
-      mobileOTP,
       emailVerified: false,
-      mobileVerified: false,
+      mobileVerified: true,
+      emailOTP: null,
+      mobileOTP: null,
     });
     await user.save();
-    await sendEmail(email, `Your OTP is ${emailOTP}`);
-    await sendSMS(mobile, `Your OTP is ${mobileOTP}`);
-    res
-      .status(201)
-      .json({ message: "User registered. OTPs sent to email and mobile." });
+
+    // Send email verification link
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await Verification.findOneAndUpdate(
+      { contactType: "email", contactValue: email, purpose: "register" },
+      { otp: token, verified: false, expiresAt },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    const backendBase =
+      process.env.BACKEND_BASE_URL ||
+      `http://localhost:${process.env.PORT || 5000}`;
+    const verifyUrl = `${backendBase}/api/auth/verify-email?email=${encodeURIComponent(
+      email
+    )}&token=${token}`;
+    await sendEmail(
+      email,
+      `Welcome to TrackMyLaundry! Click the link to verify your email: ${verifyUrl}\nThis link expires in 1 hour.`
+    );
+
+    res.status(201).json({
+      message:
+        "Registration successful. Please check your email to verify your account.",
+    });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
+// Backward compatible combined verification for existing users
 exports.verifyOTP = async (req, res) => {
   try {
     const { email, emailOTP, mobile, mobileOTP } = req.body;
@@ -71,9 +112,9 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "Invalid credentials" });
-    if (!user.emailVerified || !user.mobileVerified) {
+    if (!user.emailVerified) {
       return res.status(403).json({
-        message: "Please verify your email and mobile before logging in.",
+        message: "Please verify your email before logging in.",
       });
     }
     const isMatch = await bcrypt.compare(password, user.password);
@@ -99,16 +140,31 @@ exports.login = async (req, res) => {
   }
 };
 
+// Send email verification OTP (unique) via nodemailer
 exports.sendEmailOTP = async (req, res) => {
   try {
     const { email } = req.body;
-    const emailOTP = Math.floor(100000 + Math.random() * 900000).toString();
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
-    user.emailOTP = emailOTP;
-    user.emailVerified = false;
-    await user.save();
-    await sendEmail(email, `Your OTP is ${emailOTP}`);
+    if (!email) return res.status(400).json({ message: "Email is required" });
+
+    // Allow sending OTP for new users and for existing unverified users
+    const existingUser = await User.findOne({ email });
+    if (existingUser && existingUser.emailVerified) {
+      return res.status(400).json({ message: "Email already verified" });
+    }
+
+    const otp = await generateUniqueEmailOtp();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await Verification.findOneAndUpdate(
+      { contactType: "email", contactValue: email, purpose: "register" },
+      { otp, verified: false, expiresAt },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    await sendEmail(
+      email,
+      `Your TrackMyLaundry email OTP is ${otp}. It expires in 10 minutes.`
+    );
     res.json({ message: "OTP sent to email" });
   } catch (err) {
     res
@@ -120,17 +176,178 @@ exports.sendEmailOTP = async (req, res) => {
 exports.sendMobileOTP = async (req, res) => {
   try {
     const { mobile } = req.body;
+    if (!mobile) return res.status(400).json({ message: "Mobile is required" });
+
+    // Prevent verifying an already-registered mobile number
+    const existingUser = await User.findOne({ mobile });
+    if (existingUser) {
+      return res.status(400).json({ message: "Mobile already in use" });
+    }
+
     const mobileOTP = Math.floor(100000 + Math.random() * 900000).toString();
-    const user = await User.findOne({ mobile });
-    if (!user) return res.status(404).json({ message: "User not found" });
-    user.mobileOTP = mobileOTP;
-    user.mobileVerified = false;
-    await user.save();
-    await sendSMS(mobile, `Your OTP is ${mobileOTP}`);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await Verification.findOneAndUpdate(
+      { contactType: "mobile", contactValue: mobile, purpose: "register" },
+      { otp: mobileOTP, verified: false, expiresAt },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    await sendSMS(
+      mobile,
+      `Your TrackMyLaundry mobile OTP is ${mobileOTP}. It expires in 10 minutes.`
+    );
     res.json({ message: "OTP sent to mobile" });
   } catch (err) {
     res
       .status(500)
       .json({ message: "Failed to send mobile OTP", error: err.message });
+  }
+};
+
+// Email verification via link (token) or OTP
+exports.verifyEmailOnly = async (req, res) => {
+  try {
+    const email =
+      (req.query && req.query.email) || (req.body && req.body.email);
+    const token =
+      (req.query && req.query.token) || (req.body && req.body.token);
+    const otp = (req.body && req.body.otp) || (req.query && req.query.otp);
+
+    console.log("Verification attempt:", {
+      email,
+      token,
+      otp,
+      method: req.method,
+    });
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    if (!token && !otp) {
+      return res.status(400).json({ message: "Token or OTP is required" });
+    }
+
+    const record = await Verification.findOne({
+      contactType: "email",
+      contactValue: email,
+      purpose: "register",
+    });
+
+    console.log(
+      "Found record:",
+      record ? "yes" : "no",
+      record
+        ? {
+            id: record._id,
+            verified: record.verified,
+            expiresAt: record.expiresAt,
+          }
+        : "none"
+    );
+
+    if (!record) {
+      return res
+        .status(404)
+        .json({ message: "No verification requested for this email" });
+    }
+
+    if (record.expiresAt < new Date()) {
+      return res.status(400).json({ message: "Verification expired" });
+    }
+
+    // Check if the provided token/otp matches the stored one
+    if (token && record.otp !== token) {
+      return res.status(400).json({ message: "Invalid verification token" });
+    }
+
+    if (otp && record.otp !== otp) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    record.verified = true;
+    await record.save();
+
+    // If user already exists (e.g. link resend), mark verified
+    const user = await User.findOne({ email });
+    if (user) {
+      user.emailVerified = true;
+      await user.save();
+    }
+
+    // If request is a browser link GET, show a simple HTML response
+    if (req.method === "GET") {
+      return res.send(
+        "Email verified successfully. You can close this window and return to the app."
+      );
+    }
+
+    res.json({ message: "Email verified" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+exports.verifyMobileOnly = async (req, res) => {
+  try {
+    const { mobile, otp } = req.body;
+    if (!mobile || !otp)
+      return res.status(400).json({ message: "Mobile and OTP are required" });
+    const record = await Verification.findOne({
+      contactType: "mobile",
+      contactValue: mobile,
+      purpose: "register",
+    });
+    if (!record)
+      return res
+        .status(404)
+        .json({ message: "No OTP requested for this mobile" });
+    if (record.expiresAt < new Date())
+      return res.status(400).json({ message: "OTP expired" });
+    if (record.otp !== otp)
+      return res.status(400).json({ message: "Invalid OTP" });
+    record.verified = true;
+    await record.save();
+    res.json({ message: "Mobile verified" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+// Resend email verification link for existing unverified users
+exports.resendVerificationEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email is required" });
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (user.emailVerified) {
+      return res.status(400).json({ message: "Email is already verified" });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await Verification.findOneAndUpdate(
+      { contactType: "email", contactValue: email, purpose: "register" },
+      { otp: token, verified: false, expiresAt },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    const backendBase =
+      process.env.BACKEND_BASE_URL ||
+      `http://localhost:${process.env.PORT || 5000}`;
+    const verifyUrl = `${backendBase}/api/auth/verify-email?email=${encodeURIComponent(
+      email
+    )}&token=${token}`;
+
+    await sendEmail(
+      email,
+      `Verify your TrackMyLaundry account: ${verifyUrl}\nThis link expires in 1 hour.`
+    );
+    res.json({ message: "Verification email resent" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };

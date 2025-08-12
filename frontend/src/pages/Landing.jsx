@@ -1,300 +1,531 @@
-import { Box, Button, Typography, Grid, Paper, Container } from "@mui/material";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import LocalLaundryServiceIcon from "@mui/icons-material/LocalLaundryService";
-import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
-import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import DashboardIcon from "@mui/icons-material/Dashboard";
-import SmsIcon from "@mui/icons-material/Sms";
 
-const features = [
-  {
-    icon: <LocalLaundryServiceIcon color="primary" sx={{ fontSize: 40 }} />,
-    title: "NFC-Triggered Tracking",
-    desc: "Automated ticket generation and real-time laundry tracking with NFC.",
-  },
-  {
-    icon: <NotificationsActiveIcon color="primary" sx={{ fontSize: 40 }} />,
-    title: "Live Status & Notifications",
-    desc: "Track your laundry status live and get push/SMS notifications.",
-  },
-  {
-    icon: <HistoryEduIcon color="primary" sx={{ fontSize: 40 }} />,
-    title: "Order History",
-    desc: "View your laundry order history with timestamps and shelf locations.",
-  },
-  {
-    icon: <EmojiEventsIcon color="primary" sx={{ fontSize: 40 }} />,
-    title: "Rewards & Coupons",
-    desc: "Earn loyalty rewards and use coupons for discounts.",
-  },
-];
+const typingText = "_Track Your Laundry with Smart Technology";
 
-const valueProps = [
-  {
-    icon: <DashboardIcon color="primary" sx={{ fontSize: 32 }} />,
-    title: "Admin Dashboard",
-    desc: "Powerful tools for staff and admins.",
-  },
-  {
-    icon: <SmsIcon color="primary" sx={{ fontSize: 32 }} />,
-    title: "Instant Alerts",
-    desc: "Never miss an update with instant SMS and push notifications.",
-  },
-  {
-    icon: <LocalLaundryServiceIcon color="primary" sx={{ fontSize: 32 }} />,
-    title: "Easy to Use",
-    desc: "A beautiful, intuitive interface for everyone.",
-  },
-];
-
-export default function Landing() {
-  const navigate = useNavigate();
-
+// Animated garment symbol component
+const GarmentSymbol = ({ symbol, delay, position, size }) => {
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        bgcolor: "#f7fafc",
-        display: "flex",
-        flexDirection: "column",
+    <motion.div
+      style={{
+        position: "absolute",
+        fontSize: size,
+        left: position.x,
+        top: position.y,
+        zIndex: 0,
+        opacity: 0.6,
+        filter: "blur(0.5px)",
+      }}
+      animate={{
+        y: [0, -30, 0],
+        rotate: [0, 360],
+        scale: [1, 1.1, 1],
+      }}
+      transition={{
+        duration: 8,
+        delay: delay,
+        repeat: Infinity,
+        ease: "easeInOut",
       }}
     >
-      {/* Hero Section */}
-      <Box
-        sx={{
-          width: "100%",
-          minHeight: { xs: 400, md: 520 },
-          background: "linear-gradient(120deg, #00bcd4 0%, #1976d2 100%)",
-          color: "white",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {/* Decorative SVG shape */}
-        <Box
-          sx={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            width: 400,
-            height: 400,
-            opacity: 0.15,
-            zIndex: 1,
-            display: { xs: "none", md: "block" },
+      {symbol}
+    </motion.div>
+  );
+};
+
+// Dot pattern background component
+const DotPattern = () => {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        opacity: 0.1,
+        background: "radial-gradient(circle, #3b82f6 1px, transparent 1px)",
+        backgroundSize: "30px 30px",
+        animation: "drift 20s linear infinite",
+        zIndex: 0,
+      }}
+    />
+  );
+};
+
+// Floating geometric shapes
+const GeometricShape = ({ size, color, delay, position }) => {
+  return (
+    <motion.div
+      style={{
+        position: "absolute",
+        width: size,
+        height: size,
+        background: `linear-gradient(135deg, ${color}20, ${color}05)`,
+        borderRadius: "12px",
+        left: position.x,
+        top: position.y,
+        zIndex: 0,
+      }}
+      animate={{
+        y: [0, -40, 0],
+        rotate: [0, 180, 360],
+        scale: [1, 1.2, 1],
+      }}
+      transition={{
+        duration: 10,
+        delay: delay,
+        repeat: Infinity,
+        ease: "easeInOut",
+      }}
+    />
+  );
+};
+
+export default function Landing() {
+  const [displayed, setDisplayed] = useState("");
+  const [showButtons, setShowButtons] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const idx = useRef(0);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (idx.current < typingText.length) {
+      const timeout = setTimeout(() => {
+        setDisplayed((prev) => prev + typingText.charAt(idx.current));
+        idx.current += 1;
+      }, 60);
+      return () => clearTimeout(timeout);
+    } else if (idx.current === typingText.length) {
+      idx.current++;
+      setTimeout(() => setShowButtons(true), 800);
+    }
+  }, [displayed]);
+
+  const garmentSymbols = [
+    { symbol: "👕", delay: 0, position: { x: "15%", y: "25%" }, size: "2rem" },
+    {
+      symbol: "👖",
+      delay: 1,
+      position: { x: "85%", y: "20%" },
+      size: "2.5rem",
+    },
+    {
+      symbol: "🧥",
+      delay: 2,
+      position: { x: "20%", y: "75%" },
+      size: "2.2rem",
+    },
+    {
+      symbol: "👗",
+      delay: 3,
+      position: { x: "80%", y: "70%" },
+      size: "2.8rem",
+    },
+    {
+      symbol: "🧦",
+      delay: 4,
+      position: { x: "10%", y: "60%" },
+      size: "1.8rem",
+    },
+    {
+      symbol: "👔",
+      delay: 5,
+      position: { x: "90%", y: "45%" },
+      size: "2.3rem",
+    },
+    { symbol: "👚", delay: 6, position: { x: "5%", y: "40%" }, size: "2.1rem" },
+    {
+      symbol: "👖",
+      delay: 7,
+      position: { x: "75%", y: "85%" },
+      size: "2.4rem",
+    },
+  ];
+
+  // Geometric shapes for background
+  const geometricShapes = [
+    {
+      size: "120px",
+      color: "#3b82f6",
+      delay: 0,
+      position: { x: "8%", y: "15%" },
+    },
+    {
+      size: "80px",
+      color: "#10b981",
+      delay: 2,
+      position: { x: "88%", y: "25%" },
+    },
+    {
+      size: "100px",
+      color: "#f59e0b",
+      delay: 4,
+      position: { x: "12%", y: "80%" },
+    },
+    {
+      size: "60px",
+      color: "#ef4444",
+      delay: 6,
+      position: { x: "82%", y: "78%" },
+    },
+  ];
+
+  return (
+    <div
+      style={{
+        minHeight: "97vh",
+        width: "98vw",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+        overflow: "hidden",
+        position: "relative",
+        fontFamily: "'Inter', sans-serif",
+        color: "#1e293b",
+      }}
+    >
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        
+        @keyframes drift {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(30px); }
+        }
+        
+        @keyframes slideUp {
+          0% { transform: translateY(60px); opacity: 0; }
+          100% { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes slideDown {
+          0% { transform: translateY(-60px); opacity: 0; }
+          100% { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes fadeIn {
+          0% { opacity: 0; transform: translateY(30px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes scaleIn {
+          0% { transform: scale(0.8); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .main-title {
+          font-family: 'Inter', sans-serif;
+          font-weight: 800;
+          font-size: clamp(2.5rem, 8vw, 4.5rem);
+          color: inherit;
+          margin: 0 0 32px 0;
+          text-align: center;
+          letter-spacing: -2px;
+          line-height: 1.1;
+          animation: slideDown 1s ease-out 0.2s both;
+        }
+        
+        .subtitle {
+          font-family: 'JetBrains Mono', monospace;
+          font-weight: 500;
+          font-size: clamp(1rem, 3vw, 1.3rem);
+          color: #64748b;
+          margin: 0 0 64px 0;
+          text-align: center;
+          letter-spacing: 0.5px;
+          min-height: 50px;
+          border-right: 2px solid #3b82f6;
+          padding-right: 8px;
+          animation: slideUp 1s ease-out 0.4s both;
+        }
+        
+        .button-container {
+          display: flex;
+          gap: 24px;
+          flex-direction: row;
+          align-items: center;
+          animation: fadeIn 1s ease-out 0.6s both;
+        }
+        
+        .btn-primary {
+          background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+          color: white;
+          border: none;
+          padding: 16px 40px;
+          font-size: 1.1rem;
+          font-weight: 600;
+          border-radius: 12px;
+          font-family: 'Inter', sans-serif;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 4px 20px rgba(59, 130, 246, 0.25);
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .btn-primary::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+          transition: left 0.5s;
+        }
+        
+        .btn-primary:hover::before {
+          left: 100%;
+        }
+        
+        .btn-primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 30px rgba(59, 130, 246, 0.35);
+        }
+        
+        .btn-secondary {
+          background: white;
+          color: #3b82f6;
+          border: 2px solid #3b82f6;
+          padding: 16px 40px;
+          font-size: 1.1rem;
+          font-weight: 600;
+          border-radius: 12px;
+          font-family: 'Inter', sans-serif;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 4px 20px rgba(59, 130, 246, 0.1);
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .btn-secondary::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+          transition: left 0.5s;
+        }
+        
+        .btn-secondary:hover::before {
+          left: 100%;
+        }
+        
+        .btn-secondary:hover {
+          transform: translateY(-2px);
+          background: #f8fafc;
+          box-shadow: 0 8px 30px rgba(59, 130, 246, 0.2);
+        }
+        
+        .main-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          z-index: 2;
+          position: relative;
+          max-width: 900px;
+          padding: 40px 20px;
+          text-align: center;
+        }
+        
+        .logo-container {
+          margin-bottom: 40px;
+          animation: scaleIn 1s ease-out 0.1s both;
+        }
+        
+        .logo {
+          width: 120px;
+          height: 120px;
+          background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 3rem;
+          color: white;
+          box-shadow: 0 8px 32px rgba(59, 130, 246, 0.3);
+          margin: 0 auto 24px;
+        }
+        
+        .feature-highlights {
+          margin-top: 80px;
+          display: flex;
+          gap: 40px;
+          flex-wrap: wrap;
+          justify-content: center;
+          opacity: showButtons ? 1 : 0;
+          transform: showButtons ? "translateY(0)" : "translateY(30px)";
+          transition: all 1s ease-out 0.3s;
+        }
+        
+        .feature-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          color: #64748b;
+          font-size: 0.95rem;
+          font-weight: 500;
+        }
+        
+        .feature-icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 1.2rem;
+        }
+        
+        @media (max-width: 768px) {
+          .button-container {
+            flex-direction: column;
+            gap: 16px;
+          }
+          
+          .btn-primary, .btn-secondary {
+            width: 100%;
+            max-width: 280px;
+          }
+          
+          .feature-highlights {
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 60px;
+          }
+          
+          .logo {
+            width: 100px;
+            height: 100px;
+            font-size: 2.5rem;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .main-title {
+            font-size: clamp(2rem, 10vw, 3rem);
+          }
+          
+          .subtitle {
+            font-size: clamp(0.9rem, 4vw, 1.1rem);
+          }
+          
+          .logo {
+            width: 80px;
+            height: 80px;
+            font-size: 2rem;
+          }
+        }
+      `}</style>
+
+      {/* Dot pattern background */}
+      <DotPattern />
+
+      {/* Geometric shapes */}
+      {geometricShapes.map((shape, index) => (
+        <GeometricShape
+          key={index}
+          size={shape.size}
+          color={shape.color}
+          delay={shape.delay}
+          position={shape.position}
+        />
+      ))}
+
+      {/* Animated garment symbols */}
+      {garmentSymbols.map((garment, index) => (
+        <GarmentSymbol
+          key={index}
+          symbol={garment.symbol}
+          delay={garment.delay}
+          position={garment.position}
+          size={garment.size}
+        />
+      ))}
+
+      {/* Main content */}
+      <div className="main-container">
+        {/* Logo */}
+        <div className="logo-container">
+          <div className="logo">🧺</div>
+        </div>
+
+        <h1 className="main-title">TrackMyLaundry</h1>
+        <h2 className="subtitle">{displayed}</h2>
+
+        <div
+          className="button-container"
+          style={{
+            opacity: showButtons ? 1 : 0,
+            transform: showButtons ? "translateY(0)" : "translateY(20px)",
+            transition: "all 0.8s ease-out",
           }}
         >
-          <svg width="100%" height="100%" viewBox="0 0 400 400">
-            <circle cx="200" cy="200" r="200" fill="#fff" />
-          </svg>
-        </Box>
-        <Container
-          maxWidth="lg"
-          sx={{ position: "relative", zIndex: 2, pt: 8, pb: 6 }}
+          <button className="btn-primary" onClick={() => navigate("/register")}>
+            Get Started
+          </button>
+          <button className="btn-secondary" onClick={() => navigate("/login")}>
+            Sign In
+          </button>
+        </div>
+
+        {/* Feature highlights */}
+        <div
+          className="feature-highlights"
+          style={{
+            opacity: showButtons ? 1 : 0,
+            transform: showButtons ? "translateY(0)" : "translateY(30px)",
+            transition: "all 1s ease-out 0.3s",
+          }}
         >
-          <Grid container alignItems="center" spacing={4}>
-            <Grid item xs={12} md={6}>
-              <motion.div
-                initial={{ opacity: 0, x: -60 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.7, type: "spring" }}
-              >
-                <Typography
-                  variant="h2"
-                  fontWeight="bold"
-                  mb={2}
-                  sx={{ letterSpacing: 1 }}
-                >
-                  TrackMyLaundry
-                </Typography>
-                <Typography variant="h5" mb={4} sx={{ opacity: 0.95 }}>
-                  The smart, modern way to track, manage, and get notified about
-                  your laundry—powered by NFC, real-time updates, and rewards!
-                </Typography>
-                <Box display="flex" gap={2} mt={2}>
-                  <motion.div
-                    whileHover={{ scale: 1.07 }}
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    <Button
-                      variant="contained"
-                      color="secondary"
-                      size="large"
-                      sx={{
-                        fontWeight: "bold",
-                        px: 4,
-                        borderRadius: 3,
-                        boxShadow: 3,
-                      }}
-                      onClick={() => navigate("/register")}
-                    >
-                      Get Started
-                    </Button>
-                  </motion.div>
-                  <motion.div
-                    whileHover={{ scale: 1.07 }}
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    <Button
-                      variant="outlined"
-                      color="inherit"
-                      size="large"
-                      sx={{
-                        fontWeight: "bold",
-                        px: 4,
-                        borderRadius: 3,
-                        borderColor: "white",
-                        color: "white",
-                      }}
-                      onClick={() => navigate("/login")}
-                    >
-                      Login
-                    </Button>
-                  </motion.div>
-                </Box>
-              </motion.div>
-            </Grid>
-            <Grid item xs={12} md={6} display="flex" justifyContent="center">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.7 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.9, type: "spring" }}
-              >
-                <Box
-                  sx={{
-                    width: 320,
-                    height: 320,
-                    background: "rgba(255,255,255,0.13)",
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    boxShadow: 6,
-                  }}
-                >
-                  <LocalLaundryServiceIcon
-                    sx={{ fontSize: 140, color: "#fff" }}
-                  />
-                </Box>
-              </motion.div>
-            </Grid>
-          </Grid>
-        </Container>
-      </Box>
+          <div className="feature-item">
+            <div
+              className="feature-icon"
+              style={{
+                background: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+              }}
+            >
+              📱
+            </div>
+            Smart Tracking
+          </div>
 
-      {/* Features Section */}
-      <Container maxWidth="lg" sx={{ mt: { xs: 6, md: 10 }, mb: 6 }}>
-        <Typography
-          variant="h4"
-          fontWeight="bold"
-          textAlign="center"
-          mb={4}
-          color="primary"
-        >
-          Why Choose TrackMyLaundry?
-        </Typography>
-        <Grid container spacing={4} justifyContent="center">
-          {features.map((feature, idx) => (
-            <Grid item xs={12} sm={6} md={3} key={feature.title}>
-              <motion.div
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                viewport={{ once: true }}
-              >
-                <Paper
-                  elevation={6}
-                  sx={{
-                    p: 4,
-                    borderRadius: 4,
-                    minHeight: 220,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    background: "rgba(255,255,255,0.97)",
-                  }}
-                >
-                  {feature.icon}
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    mt={2}
-                    mb={1}
-                    color="primary"
-                  >
-                    {feature.title}
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    color="text.secondary"
-                    textAlign="center"
-                  >
-                    {feature.desc}
-                  </Typography>
-                </Paper>
-              </motion.div>
-            </Grid>
-          ))}
-        </Grid>
-      </Container>
+          <div className="feature-item">
+            <div
+              className="feature-icon"
+              style={{
+                background: "linear-gradient(135deg, #10b981, #059669)",
+              }}
+            >
+              ⚡
+            </div>
+            Real-time Updates
+          </div>
 
-      {/* Value Props Section */}
-      <Box sx={{ bgcolor: "#e3f2fd", py: 6 }}>
-        <Container maxWidth="md">
-          <Grid container spacing={4} justifyContent="center">
-            {valueProps.map((prop, idx) => (
-              <Grid item xs={12} sm={4} key={prop.title}>
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: idx * 0.1 }}
-                  viewport={{ once: true }}
-                >
-                  <Paper
-                    elevation={3}
-                    sx={{
-                      p: 3,
-                      borderRadius: 3,
-                      textAlign: "center",
-                      background: "white",
-                    }}
-                  >
-                    {prop.icon}
-                    <Typography
-                      variant="subtitle1"
-                      fontWeight="bold"
-                      mt={1}
-                      mb={0.5}
-                      color="primary"
-                    >
-                      {prop.title}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {prop.desc}
-                    </Typography>
-                  </Paper>
-                </motion.div>
-              </Grid>
-            ))}
-          </Grid>
-        </Container>
-      </Box>
-
-      {/* Footer */}
-      <Box
-        sx={{
-          bgcolor: "#1976d2",
-          color: "white",
-          py: 2,
-          textAlign: "center",
-          mt: "auto",
-        }}
-      >
-        <Typography variant="body2">
-          &copy; {new Date().getFullYear()} TrackMyLaundry. All rights reserved.
-        </Typography>
-      </Box>
-    </Box>
+          <div className="feature-item">
+            <div
+              className="feature-icon"
+              style={{
+                background: "linear-gradient(135deg, #f59e0b, #d97706)",
+              }}
+            >
+              🔒
+            </div>
+            Secure & Reliable
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

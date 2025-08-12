@@ -22,6 +22,10 @@ import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
 import LockIcon from "@mui/icons-material/Lock";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import { useNavigate } from "react-router-dom";
+import bgImage from "../assets/laundry-bg.jpg";
+import { register } from "../utils/api";
+import { toast } from "react-toastify";
 
 // Styled components for custom animations
 const pulse = keyframes`
@@ -100,7 +104,7 @@ const OtpContainer = styled(Paper)(({ theme }) => ({
   backdropFilter: "blur(10px)",
 }));
 
-export default function EnhancedRegister() {
+export default function Register() {
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -109,98 +113,76 @@ export default function EnhancedRegister() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [emailOTP, setEmailOTP] = useState("");
-  const [mobileOTP, setMobileOTP] = useState("");
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [emailVerified, setEmailVerified] = useState(false);
-  const [mobileVerified, setMobileVerified] = useState(false);
-  const [sendingEmailOtp, setSendingEmailOtp] = useState(false);
-  const [sendingMobileOtp, setSendingMobileOtp] = useState(false);
-  const [showEmailOtp, setShowEmailOtp] = useState(false);
-  const [showMobileOtp, setShowMobileOtp] = useState(false);
+
+  const navigate = useNavigate();
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSendEmailOtp = async () => {
-    setSendingEmailOtp(true);
-    setTimeout(() => {
-      setSendingEmailOtp(false);
-      setShowEmailOtp(true);
-      setError("");
-    }, 2000);
-  };
-
-  const handleSendMobileOtp = async () => {
-    setSendingMobileOtp(true);
-    setTimeout(() => {
-      setSendingMobileOtp(false);
-      setShowMobileOtp(true);
-      setError("");
-    }, 2000);
-  };
-
-  const handleVerifyEmailOtp = async () => {
-    setOtpLoading(true);
-    setTimeout(() => {
-      setOtpLoading(false);
-      if (emailOTP === "123456") {
-        setEmailVerified(true);
-        setShowEmailOtp(false);
-      } else {
-        setError("Invalid email OTP. Try 123456");
-      }
-    }, 1500);
-  };
-
-  const handleVerifyMobileOtp = async () => {
-    setOtpLoading(true);
-    setTimeout(() => {
-      setOtpLoading(false);
-      if (mobileOTP === "654321") {
-        setMobileVerified(true);
-        setShowMobileOtp(false);
-      } else {
-        setError("Invalid mobile OTP. Try 654321");
-      }
-    }, 1500);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!emailVerified || !mobileVerified) {
-      setError("Please verify both email and mobile number");
+
+    // Validation
+    if (!form.name.trim()) {
+      setError("Please enter your full name");
       return;
     }
+
+    if (!form.password || form.password.length < 6) {
+      setError("Password must be at least 6 characters long");
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
+    setError("");
+
+    try {
+      const userData = {
+        name: form.name.trim(),
+        email: form.email,
+        mobile: form.mobile,
+        password: form.password,
+      };
+
+      await register(userData);
       setLoading(false);
-      alert("Registration successful! You can now login.");
-    }, 2000);
+      setError("");
+      toast.success(
+        "Registration successful! Check your email to verify your account."
+      );
+      navigate("/login");
+    } catch (err) {
+      setLoading(false);
+      const msg =
+        err.response?.data?.message || "Registration failed. Please try again.";
+      setError(msg);
+      toast.error(msg);
+    }
   };
 
-  const isEmailValid = form.email && form.email.includes("@");
-  const isMobileValid = form.mobile && form.mobile.length >= 10;
+  const isEmailValid =
+    form.email && form.email.includes("@") && form.email.length > 5;
+  const isFormValid =
+    form.name.trim() && form.password && form.password.length >= 6;
 
   return (
     <Box
+      minHeight="100vh"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
       sx={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        p: 2,
-        position: "fixed",
-        width: "100vw",
-        height: "100vh",
-        top: 0,
-        left: 0,
-        overflow: "hidden",
-        backgroundImage:
-          "url(https://images.unsplash.com/photo-1582735689369-4fe89db7114c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80)",
+        backgroundImage: `url(${bgImage})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
+        position: "fixed",
+        width: "100vw",
+        height: "100vh",
+        overflowY: "auto",
+        overflowX: "hidden",
+        top: 0,
+        left: 0,
       }}
     >
       {/* Overlay */}
@@ -250,20 +232,7 @@ export default function EnhancedRegister() {
           zIndex: 3,
         }}
       >
-        <Paper
-          elevation={24}
-          sx={{
-            p: 4,
-            borderRadius: 6,
-            backgroundColor: "rgba(255, 255, 255, 0.9)",
-            backdropFilter: "blur(20px)",
-            border: "1px solid rgba(255, 255, 255, 0.3)",
-            transition: "transform 0.3s ease",
-            "&:hover": {
-              transform: "scale(1.02)",
-            },
-          }}
-        >
+        <Paper elevation={8} sx={{ p: 3, borderRadius: 4 }}>
           {/* Header */}
           <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
             <motion.div
@@ -271,43 +240,20 @@ export default function EnhancedRegister() {
               animate={{ scale: 1, rotate: [0, 20, -20, 0] }}
               transition={{ duration: 0.8, type: "tween" }}
             >
-              <Box
-                sx={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: 4,
-                  background:
-                    "linear-gradient(45deg, #00bcd4 30%, #2196f3 90%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  mb: 2,
-                  transform: "rotate(12deg)",
-                  transition: "transform 0.5s ease",
-                  "&:hover": {
-                    transform: "rotate(0deg)",
-                  },
-                }}
-              >
-                <LocalLaundryServiceIcon
-                  sx={{ fontSize: 40, color: "white" }}
-                />
-              </Box>
+              <LocalLaundryServiceIcon
+                sx={{ fontSize: 60, color: "#00bcd4" }}
+              />
             </motion.div>
             <Typography
-              variant="h3"
+              variant="h4"
               fontWeight="bold"
-              sx={{
-                background: "linear-gradient(45deg, #00bcd4 30%, #2196f3 90%)",
-                backgroundClip: "text",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                mb: 1,
-              }}
+              mt={1}
+              mb={1}
+              color="primary"
             >
               TrackMyLaundry
             </Typography>
-            <Typography variant="body1" color="text.secondary">
+            <Typography variant="subtitle1" color="text.secondary">
               Create your account to get started!
             </Typography>
           </Box>
@@ -323,223 +269,61 @@ export default function EnhancedRegister() {
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
             {/* Name Field */}
             <TextField
-              label="Name"
+              label="Full Name"
               name="name"
               value={form.name}
               onChange={handleChange}
               fullWidth
               required
               margin="normal"
-              sx={{ mb: 2 }}
+              sx={{ mb: 1.5 }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
                     <PersonIcon color="primary" />
                   </InputAdornment>
                 ),
-                sx: { borderRadius: 3 },
               }}
             />
 
-            {/* Email Field with OTP */}
-            <Box sx={{ mb: 2 }}>
-              <Grid container spacing={1} alignItems="center">
-                <Grid item xs={7}>
-                  <TextField
-                    label="Email"
-                    name="email"
-                    type="email"
-                    value={form.email}
-                    onChange={handleChange}
-                    fullWidth
-                    required
-                    disabled={emailVerified}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <EmailIcon
-                            color={emailVerified ? "success" : "primary"}
-                          />
-                        </InputAdornment>
-                      ),
-                      sx: {
-                        borderRadius: 3,
-                        backgroundColor: emailVerified
-                          ? "rgba(76, 175, 80, 0.1)"
-                          : "inherit",
-                      },
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={5}>
-                  {emailVerified ? (
-                    <VerifiedButton fullWidth startIcon={<CheckCircleIcon />}>
-                      Verified
-                    </VerifiedButton>
-                  ) : (
-                    <GradientButton
-                      fullWidth
-                      onClick={handleSendEmailOtp}
-                      disabled={sendingEmailOtp || !isEmailValid}
-                    >
-                      {sendingEmailOtp ? (
-                        <>
-                          <CircularProgress
-                            size={20}
-                            color="inherit"
-                            sx={{ mr: 1 }}
-                          />
-                          Sending...
-                        </>
-                      ) : (
-                        "Send OTP"
-                      )}
-                    </GradientButton>
-                  )}
-                </Grid>
-              </Grid>
-
-              <Slide
-                direction="down"
-                in={showEmailOtp && !emailVerified}
-                mountOnEnter
-                unmountOnExit
-              >
-                <OtpContainer elevation={2}>
-                  <Typography variant="body2" color="primary" gutterBottom>
-                    Enter the OTP sent to your email (Demo: 123456)
-                  </Typography>
-                  <Grid container spacing={1} alignItems="center">
-                    <Grid item xs={8}>
-                      <TextField
-                        value={emailOTP}
-                        onChange={(e) => setEmailOTP(e.target.value)}
-                        placeholder="Enter OTP"
-                        fullWidth
-                        size="small"
-                        sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                      />
-                    </Grid>
-                    <Grid item xs={4}>
-                      <Button
-                        onClick={handleVerifyEmailOtp}
-                        disabled={otpLoading || !emailOTP}
-                        variant="contained"
-                        fullWidth
-                        sx={{ borderRadius: 2 }}
-                      >
-                        {otpLoading ? (
-                          <CircularProgress size={20} color="inherit" />
-                        ) : (
-                          "Verify"
-                        )}
-                      </Button>
-                    </Grid>
-                  </Grid>
-                </OtpContainer>
-              </Slide>
+            {/* Email Field */}
+            <Box sx={{ mb: 1.5 }}>
+              <TextField
+                label="Email"
+                name="email"
+                type="email"
+                value={form.email}
+                onChange={handleChange}
+                fullWidth
+                required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <EmailIcon color="primary" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
             </Box>
 
-            {/* Mobile Field with OTP */}
-            <Box sx={{ mb: 2 }}>
-              <Grid container spacing={1} alignItems="center">
-                <Grid item xs={7}>
-                  <TextField
-                    label="Mobile"
-                    name="mobile"
-                    type="tel"
-                    value={form.mobile}
-                    onChange={handleChange}
-                    fullWidth
-                    required
-                    disabled={mobileVerified}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <PhoneIcon
-                            color={mobileVerified ? "success" : "primary"}
-                          />
-                        </InputAdornment>
-                      ),
-                      sx: {
-                        borderRadius: 3,
-                        backgroundColor: mobileVerified
-                          ? "rgba(76, 175, 80, 0.1)"
-                          : "inherit",
-                      },
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={5}>
-                  {mobileVerified ? (
-                    <VerifiedButton fullWidth startIcon={<CheckCircleIcon />}>
-                      Verified
-                    </VerifiedButton>
-                  ) : (
-                    <GradientButton
-                      fullWidth
-                      onClick={handleSendMobileOtp}
-                      disabled={sendingMobileOtp || !isMobileValid}
-                    >
-                      {sendingMobileOtp ? (
-                        <>
-                          <CircularProgress
-                            size={20}
-                            color="inherit"
-                            sx={{ mr: 1 }}
-                          />
-                          Sending...
-                        </>
-                      ) : (
-                        "Send OTP"
-                      )}
-                    </GradientButton>
-                  )}
-                </Grid>
-              </Grid>
-
-              <Slide
-                direction="down"
-                in={showMobileOtp && !mobileVerified}
-                mountOnEnter
-                unmountOnExit
-              >
-                <OtpContainer
-                  elevation={2}
-                  sx={{ backgroundColor: "rgba(227, 242, 253, 0.8)" }}
-                >
-                  <Typography variant="body2" color="primary" gutterBottom>
-                    Enter the OTP sent to your mobile (Demo: 654321)
-                  </Typography>
-                  <Grid container spacing={1} alignItems="center">
-                    <Grid item xs={8}>
-                      <TextField
-                        value={mobileOTP}
-                        onChange={(e) => setMobileOTP(e.target.value)}
-                        placeholder="Enter OTP"
-                        fullWidth
-                        size="small"
-                        sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                      />
-                    </Grid>
-                    <Grid item xs={4}>
-                      <Button
-                        onClick={handleVerifyMobileOtp}
-                        disabled={otpLoading || !mobileOTP}
-                        variant="contained"
-                        fullWidth
-                        sx={{ borderRadius: 2 }}
-                      >
-                        {otpLoading ? (
-                          <CircularProgress size={20} color="inherit" />
-                        ) : (
-                          "Verify"
-                        )}
-                      </Button>
-                    </Grid>
-                  </Grid>
-                </OtpContainer>
-              </Slide>
+            {/* Mobile Field */}
+            <Box sx={{ mb: 1.5 }}>
+              <TextField
+                label="Mobile Number"
+                name="mobile"
+                type="tel"
+                value={form.mobile}
+                onChange={handleChange}
+                fullWidth
+                required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PhoneIcon color="primary" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
             </Box>
 
             {/* Password Field */}
@@ -552,56 +336,43 @@ export default function EnhancedRegister() {
               fullWidth
               required
               margin="normal"
-              sx={{ mb: 3 }}
+              sx={{ mb: 2.5 }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
                     <LockIcon color="primary" />
                   </InputAdornment>
                 ),
-                sx: { borderRadius: 3 },
               }}
             />
 
             {/* Submit Button */}
             <motion.div
               whileHover={{
-                scale: loading || !emailVerified || !mobileVerified ? 1 : 1.05,
+                scale: loading ? 1 : 1.04,
               }}
               whileTap={{
-                scale: loading || !emailVerified || !mobileVerified ? 1 : 0.98,
+                scale: loading ? 1 : 0.98,
               }}
+              style={{ width: "100%" }}
             >
               <Button
                 type="submit"
+                variant="contained"
+                color="primary"
                 fullWidth
-                disabled={loading || !emailVerified || !mobileVerified}
+                disabled={loading || !isFormValid}
                 sx={{
-                  py: 2,
-                  fontSize: "1.1rem",
+                  py: 1.5,
                   fontWeight: "bold",
-                  borderRadius: 3,
-                  background:
-                    loading || !emailVerified || !mobileVerified
-                      ? "rgba(0, 0, 0, 0.12)"
-                      : "linear-gradient(45deg, #00bcd4 30%, #2196f3 90%)",
-                  color:
-                    loading || !emailVerified || !mobileVerified
-                      ? "rgba(0, 0, 0, 0.26)"
-                      : "white",
-                  boxShadow:
-                    loading || !emailVerified || !mobileVerified
-                      ? "none"
-                      : "0 4px 15px 0 rgba(33, 203, 243, .4)",
+                  fontSize: "1.1rem",
+                  background: loading
+                    ? "rgba(0, 0, 0, 0.12)"
+                    : "linear-gradient(45deg, #00bcd4 30%, #2196f3 90%)",
                   "&:hover": {
-                    background:
-                      loading || !emailVerified || !mobileVerified
-                        ? "rgba(0, 0, 0, 0.12)"
-                        : "linear-gradient(45deg, #00acc1 30%, #1976d2 90%)",
-                    boxShadow:
-                      loading || !emailVerified || !mobileVerified
-                        ? "none"
-                        : "0 6px 20px 0 rgba(33, 203, 243, .4)",
+                    background: loading
+                      ? "rgba(0, 0, 0, 0.12)"
+                      : "linear-gradient(45deg, #00acc1 30%, #1976d2 90%)",
                   },
                 }}
               >
@@ -622,24 +393,23 @@ export default function EnhancedRegister() {
           </Box>
 
           {/* Login Link */}
-          <Box textAlign="center" mt={3}>
-            <Typography variant="body2" color="text.secondary">
-              Already have an account?{" "}
-              <Button
-                variant="text"
-                color="primary"
-                sx={{
-                  fontWeight: "medium",
-                  textTransform: "none",
-                  "&:hover": {
-                    backgroundColor: "rgba(33, 150, 243, 0.04)",
-                  },
-                }}
-              >
-                Login
-              </Button>
-            </Typography>
-          </Box>
+          <Typography mt={3} textAlign="center" color="text.secondary">
+            Already have an account?{" "}
+            <Button
+              variant="text"
+              color="primary"
+              onClick={() => navigate("/login")}
+              sx={{
+                fontWeight: "medium",
+                textTransform: "none",
+                "&:hover": {
+                  backgroundColor: "rgba(33, 150, 243, 0.04)",
+                },
+              }}
+            >
+              Login
+            </Button>
+          </Typography>
         </Paper>
       </motion.div>
     </Box>

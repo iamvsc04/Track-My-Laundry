@@ -8,7 +8,8 @@ import {
   InputAdornment,
 } from "@mui/material";
 import { Alert } from "@mui/material";
-import { loginUser } from "../utils/api";
+import { toast } from "react-toastify";
+import { login as loginApi, resendVerificationEmail } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -19,7 +20,7 @@ export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login: authLogin } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) =>
@@ -30,13 +31,26 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      const res = await loginUser(form);
-      login(res.data.user, res.data.token);
+      const res = await loginApi(form);
+      authLogin(res.data.user, res.data.token);
       setLoading(false);
       navigate("/dashboard");
     } catch (err) {
       setLoading(false);
-      setError(err.response?.data?.message || "Login failed");
+      const msg = err.response?.data?.message || "Login failed";
+      setError(msg);
+      toast.error(msg);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    try {
+      await resendVerificationEmail(form.email);
+      toast.success("Verification email sent. Please check your inbox.");
+    } catch (err) {
+      const msg =
+        err.response?.data?.message || "Failed to resend verification email";
+      toast.error(msg);
     }
   };
 
@@ -177,6 +191,18 @@ export default function Login() {
               Register
             </Button>
           </Typography>
+          {error?.toLowerCase().includes("verify") && (
+            <Typography mt={1} textAlign="center" color="text.secondary">
+              Didn&apos;t get the email?{" "}
+              <Button
+                variant="text"
+                color="primary"
+                onClick={handleResendVerification}
+              >
+                Resend verification
+              </Button>
+            </Typography>
+          )}
         </Paper>
       </motion.div>
     </Box>
