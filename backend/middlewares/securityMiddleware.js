@@ -27,7 +27,7 @@ const authRateLimiter = createRateLimiter(15 * 60 * 1000, 5);
 const rawOrigins =
   process.env.FRONTEND_URLS ||
   process.env.FRONTEND_URL ||
-  "https://track-my-laundry.vercel.app";
+  "https://track-my-laundry.vercel.app,http://localhost:5173,http://localhost:3000";
 
 const normalizeOrigin = (origin) => {
   if (!origin) return origin;
@@ -55,19 +55,25 @@ const allowedOrigins = rawOrigins
   .map((o) => normalizeOrigin(o.trim()))
   .filter(Boolean);
 
+console.log("[CORS] Allowed Origins:", allowedOrigins);
+console.log("[Env] MONGODB_URI starts with:", process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 15) + "..." : "undefined");
+
 const isDev = (process.env.NODE_ENV || "development") !== "production";
 
 const corsOptions = {
   origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
+    
     const normalized = normalizeOrigin(origin);
+    const isVercel = normalized.endsWith(".vercel.app");
+    const isAllowed = allowedOrigins.includes(normalized) || isVercel;
 
-    // Allow matches from allowed list
-    if (allowedOrigins.includes(normalized)) {
+    if (isAllowed) {
       return callback(null, true);
     }
 
-    // In development, allow any localhost/loopback port
+    // In development, allow localhost
     if (isDev) {
       try {
         const url = new URL(origin);
@@ -77,15 +83,14 @@ const corsOptions = {
       } catch {}
     }
 
-    console.warn(
-      `[CORS] Blocked origin: ${origin} (normalized: ${normalized})`
-    );
-    return callback(new Error(`Not allowed by CORS: ${origin}`));
+    console.warn(`[CORS] Blocked: ${origin} (Normalized: ${normalized})`);
+    // Standard cors behavior: return false instead of error to avoid 500s
+    return callback(null, false);
   },
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  // Omit allowedHeaders so cors reflects Access-Control-Request-Headers automatically
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
 };
 
 // Security headers middleware (CSP adapted to allow API access from allowed origins for connect-src)

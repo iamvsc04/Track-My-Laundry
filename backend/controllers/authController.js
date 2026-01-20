@@ -22,7 +22,7 @@ async function generateUniqueEmailOtp() {
   return Math.floor(1000000 + Math.random() * 9000000).toString();
 }
 
-exports.register = async (req, res) => {
+exports.register = async (req, res, next) => {
   try {
     const { name, email, mobile, password } = req.body;
     console.log(`[Registration] Attempt for email: ${email}, mobile: ${mobile}`);
@@ -76,7 +76,7 @@ exports.register = async (req, res) => {
     });
   } catch (err) {
     console.error("[Registration] Error during registration:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    next(err);
   }
 };
 

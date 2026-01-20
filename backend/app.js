@@ -64,10 +64,11 @@ app.use("/api/rewards", rewardRoutes);
 app.use("/api/reports", reportRoutes);
 
 // Error handling middleware
+app.use(cors(corsOptions)); // Ensure CORS headers on errors
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error("[Error Handler]", err.stack);
   res.status(500).json({
-    message: "Something went wrong!",
+    message: "Something went wrong check your server logs",
     error:
       process.env.NODE_ENV === "development"
         ? err.message
