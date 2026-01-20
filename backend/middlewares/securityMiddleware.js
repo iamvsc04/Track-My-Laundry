@@ -27,7 +27,7 @@ const authRateLimiter = createRateLimiter(15 * 60 * 1000, 5);
 const rawOrigins =
   process.env.FRONTEND_URLS ||
   process.env.FRONTEND_URL ||
-  "https://track-my-laundry.vercel.app,http://localhost:3000,http://localhost:5173";
+  "https://track-my-laundry.vercel.app";
 
 const normalizeOrigin = (origin) => {
   if (!origin) return origin;
@@ -64,11 +64,6 @@ const corsOptions = {
 
     // Allow matches from allowed list
     if (allowedOrigins.includes(normalized)) {
-      return callback(null, true);
-    }
-
-    // Allow any .vercel.app subdomain
-    if (normalized.endsWith(".vercel.app")) {
       return callback(null, true);
     }
 
@@ -193,5 +188,4 @@ module.exports = {
   sanitizeInput,
   requestSizeLimit,
   securityMiddleware,
-  normalizeOrigin,
 };
