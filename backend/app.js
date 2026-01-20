@@ -35,7 +35,10 @@ mongoose
     useUnifiedTopology: true,
   })
   .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+  .catch((err) => {
+    console.error("MongoDB connection error details:", err);
+    process.exit(1); // Optional: Exit if DB connection fails in production
+  });
 
 // Basic route
 app.get("/", (req, res) => {

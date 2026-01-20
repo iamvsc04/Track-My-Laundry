@@ -25,6 +25,7 @@ async function generateUniqueEmailOtp() {
 exports.register = async (req, res) => {
   try {
     const { name, email, mobile, password } = req.body;
+    console.log(`[Registration] Attempt for email: ${email}, mobile: ${mobile}`);
 
     // Check duplicates
     const existingUser = await User.findOne({ $or: [{ email }, { mobile }] });
@@ -46,6 +47,7 @@ exports.register = async (req, res) => {
       mobileOTP: null,
     });
     await user.save();
+    console.log(`[Registration] User saved successfully: ${user._id}`);
 
     // Send email verification link
     const token = crypto.randomBytes(32).toString("hex");
@@ -66,12 +68,14 @@ exports.register = async (req, res) => {
       email,
       `Welcome to TrackMyLaundry! Click the link to verify your email: ${verifyUrl}\nThis link expires in 1 hour.`
     );
+    console.log(`[Registration] Verification email sent to: ${email}`);
 
     res.status(201).json({
       message:
         "Registration successful. Please check your email to verify your account.",
     });
   } catch (err) {
+    console.error("[Registration] Error during registration:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
