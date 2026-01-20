@@ -56,10 +56,20 @@ const userSchema = new mongoose.Schema(
       email: { type: Boolean, default: true },
       sms: { type: Boolean, default: true },
       push: { type: Boolean, default: true },
+      orderUpdates: { type: Boolean, default: true },
+      paymentReminders: { type: Boolean, default: true },
+      promotionalOffers: { type: Boolean, default: false },
+      deliveryNotifications: { type: Boolean, default: true },
+      promotions: { type: Boolean, default: false },
+      rewards: { type: Boolean, default: true },
+      reminders: { type: Boolean, default: true },
     },
 
     // Theme Preference
     theme: { type: String, enum: ["light", "dark"], default: "light" },
+
+    // FCM Token for push notifications
+    fcmToken: { type: String },
   },
   { timestamps: true }
 );

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-  Container,
   Typography,
   Box,
   Paper,
@@ -30,8 +29,10 @@ import {
   Select,
   MenuItem,
   Alert,
-  CircularProgress,
+  Stack,
+  useMediaQuery,
 } from "@mui/material";
+import { styled, useTheme } from "@mui/material/styles";
 import {
   Timeline,
   TimelineItem,
@@ -46,23 +47,28 @@ import {
   CheckCircle as CheckIcon,
   Schedule as ScheduleIcon,
   LocationOn as LocationIcon,
-  Payment as PaymentIcon,
-  Receipt as ReceiptIcon,
-  Phone as PhoneIcon,
-  Email as EmailIcon,
-  Edit as EditIcon,
   Print as PrintIcon,
   Share as ShareIcon,
-  QrCode as QrCodeIcon,
-  Nfc as NfcIcon,
-  Visibility as ViewIcon,
+  Edit as EditIcon,
   Download as DownloadIcon,
+  ArrowBack as ArrowBackIcon,
 } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getOrderById, updateOrderStatus, downloadInvoice } from "../utils/api";
+import { 
+  getOrderById, 
+  downloadInvoice, 
+  updateOrderStatus,
+  formatCurrency, 
+  formatDate, 
+  formatDateTime,
+  getStatusColor 
+} from "../utils/api";
 import { toast } from "react-toastify";
+import MainLayout from "../components/Layout/MainLayout";
+import LaundryLoader from '../components/animations/LaundryLoaders';
+import { animationVariants } from '../hooks/useAnimations';
 
 const statusSteps = [
   "Pending",
@@ -75,18 +81,6 @@ const statusSteps = [
   "Delivered",
 ];
 
-const statusColors = {
-  Pending: "default",
-  Confirmed: "info",
-  "Picked Up": "warning",
-  Washing: "primary",
-  Ironing: "secondary",
-  "Ready for Pickup": "success",
-  "Out for Delivery": "warning",
-  Delivered: "success",
-  Cancelled: "error",
-};
-
 const statusIcons = {
   Pending: <ScheduleIcon />,
   Confirmed: <CheckIcon />,
@@ -96,13 +90,28 @@ const statusIcons = {
   "Ready for Pickup": <CheckIcon />,
   "Out for Delivery": <LocationIcon />,
   Delivered: <CheckIcon />,
-  Cancelled: <ViewIcon />,
+  Cancelled: <CheckIcon />,
 };
+
+const StyledCard = styled(motion.create(Card))(({ theme }) => ({
+  background: theme.palette.background.paper,
+  borderRadius: 16,
+  border: `1px solid ${theme.palette.divider}`,
+  boxShadow: theme.shadows[1],
+  overflow: "visible",
+  transition: "all 0.3s ease",
+  "&:hover": {
+    boxShadow: theme.shadows[4],
+  }
+}));
 
 export default function OrderDetails() {
   const { orderId } = useParams();
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
@@ -117,97 +126,8 @@ export default function OrderDetails() {
   const fetchOrder = async () => {
     try {
       setLoading(true);
-      // For now, use mock data. Replace with actual API call
-      // const response = await getOrderById(token, orderId);
-      // setOrder(response.data);
-
-      // Mock order data
-      setOrder({
-        _id: orderId,
-        orderNumber: "LAU12345678",
-        status: "Washing",
-        serviceType: "Wash & Fold",
-        items: [
-          {
-            type: "Shirt",
-            quantity: 5,
-            price: 25,
-            specialInstructions: "Gentle wash",
-          },
-          {
-            type: "Pants",
-            quantity: 3,
-            price: 30,
-            specialInstructions: "No starch",
-          },
-          {
-            type: "Dress",
-            quantity: 2,
-            price: 35,
-            specialInstructions: "Hand wash",
-          },
-        ],
-        subtotal: 235,
-        tax: 23.5,
-        discount: 20,
-        total: 238.5,
-        pickup: {
-          address: "123 Main St, City, State 12345",
-          date: "2024-01-15",
-          timeSlot: "10:00 AM - 12:00 PM",
-          instructions: "Ring doorbell twice",
-        },
-        delivery: {
-          address: "123 Main St, City, State 12345",
-          date: "2024-01-17",
-          timeSlot: "2:00 PM - 4:00 PM",
-          instructions: "Leave at doorstep if not home",
-        },
-        paymentStatus: "Paid",
-        paymentMethod: "UPI",
-        transactionId: "TXN123456789",
-        nfcTag: "NFC001",
-        shelfLocation: "W_A2",
-        trackingCode: "TRK12345678",
-        assignedTo: { name: "John Doe", phone: "+1234567890" },
-        estimatedCompletion: "2024-01-17T14:00:00Z",
-        customerPreferences: {
-          detergentType: "Eco-friendly",
-          fabricSoftener: true,
-          starchLevel: "None",
-          ironing: true,
-        },
-        statusLogs: [
-          {
-            status: "Pending",
-            timestamp: "2024-01-15T08:00:00Z",
-            note: "Order created",
-            updatedBy: "System",
-          },
-          {
-            status: "Confirmed",
-            timestamp: "2024-01-15T09:00:00Z",
-            note: "Payment received",
-            updatedBy: "System",
-          },
-          {
-            status: "Picked Up",
-            timestamp: "2024-01-15T11:00:00Z",
-            note: "Picked up from customer",
-            updatedBy: "John Doe",
-          },
-          {
-            status: "Washing",
-            timestamp: "2024-01-15T12:00:00Z",
-            note: "Started washing process",
-            updatedBy: "John Doe",
-          },
-        ],
-        customerNotes: "Please handle with care, some items are delicate",
-        staffNotes: "Customer requested eco-friendly detergent",
-        createdAt: "2024-01-15T08:00:00Z",
-        updatedAt: "2024-01-15T12:00:00Z",
-      });
+      const response = await getOrderById(orderId);
+      setOrder(response.data.data);
     } catch (error) {
       console.error("Error fetching order:", error);
       toast.error("Failed to fetch order details");
@@ -218,68 +138,34 @@ export default function OrderDetails() {
 
   const handleStatusUpdate = async () => {
     if (!newStatus) return;
-
     try {
       setUpdating(true);
-      // For now, just update local state. Replace with actual API call
-      // await updateOrderStatus(token, orderId, { status: newStatus, note: statusNote });
-
-      const updatedOrder = {
-        ...order,
-        status: newStatus,
-        statusLogs: [
-          ...order.statusLogs,
-          {
-            status: newStatus,
-            timestamp: new Date().toISOString(),
-            note: statusNote || "Status updated",
-            updatedBy: user?.name || "User",
-          },
-        ],
-        updatedAt: new Date().toISOString(),
-      };
-
-      setOrder(updatedOrder);
-      setUpdateDialogOpen(false);
-      setNewStatus("");
-      setStatusNote("");
-      toast.success("Order status updated successfully");
+      const response = await updateOrderStatus(orderId, { status: newStatus, note: statusNote });
+      
+      if (response.data.success) {
+        setOrder(response.data.data);
+        setUpdateDialogOpen(false);
+        setNewStatus("");
+        setStatusNote("");
+        toast.success("Order status updated successfully");
+      }
     } catch (error) {
       console.error("Error updating status:", error);
-      toast.error("Failed to update order status");
+      toast.error(error.response?.data?.message || "Failed to update order status");
     } finally {
       setUpdating(false);
     }
   };
 
   const getCurrentStep = () => {
-    return statusSteps.indexOf(order?.status) + 1;
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const formatTime = (dateString) => {
-    return new Date(dateString).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const handlePrintInvoice = () => {
-    window.print();
+    if (!order?.status) return 0;
+    return statusSteps.indexOf(order.status) + 1;
   };
 
   const handleDownloadInvoice = async () => {
     try {
       await downloadInvoice(orderId);
-      toast.info("Invoice download started");
+      toast.success("Invoice download started");
     } catch (error) {
       toast.error("Failed to download invoice");
     }
@@ -287,558 +173,368 @@ export default function OrderDetails() {
 
   if (loading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
+      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center" }}>
+        <LaundryLoader type="washing" size={80} message="Loading order details..." />
       </Box>
     );
   }
 
   if (!order) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Alert severity="error">Order not found</Alert>
-      </Container>
+      <MainLayout>
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+          <Alert 
+            severity="error" 
+            action={
+              <Button color="inherit" size="small" onClick={() => navigate('/dashboard')}>
+                Back to Dashboard
+              </Button>
+            }
+          >
+            Order not found or access denied.
+          </Alert>
+        </Container>
+      </MainLayout>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Box>
-            <Typography variant="h4" component="h1" gutterBottom>
-              Order #{order.orderNumber}
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              {order.serviceType} • Created on {formatDate(order.createdAt)}
-            </Typography>
-          </Box>
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <Button
-              variant="outlined"
-              startIcon={<PrintIcon />}
-              onClick={handlePrintInvoice}
-            >
-              Print
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              onClick={handleDownloadInvoice}
-            >
-              Invoice
-            </Button>
-            <Button variant="outlined" startIcon={<ShareIcon />}>
-              Share
-            </Button>
-            {user?.role === "admin" && (
+    <MainLayout>
+      <motion.div
+        variants={animationVariants.pageTransition}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+      >
+        <Box sx={{ mb: 4 }}>
+          <Button 
+            startIcon={<ArrowBackIcon />} 
+            onClick={() => navigate(-1)}
+            sx={{ mb: 2 }}
+          >
+            Back
+          </Button>
+          
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 2 }}>
+            <Box>
+              <Typography variant="h4" fontWeight={800} gutterBottom>
+                Order #{order.orderNumber}
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Chip label={order.serviceType} variant="outlined" size="small" />
+                <Typography variant="body2" color="text.secondary">
+                  Created on {formatDate(order.createdAt)}
+                </Typography>
+              </Stack>
+            </Box>
+            
+            <Stack direction="row" spacing={1}>
+              <IconButton color="primary" onClick={() => window.print()}>
+                <PrintIcon />
+              </IconButton>
               <Button
-                variant="contained"
-                startIcon={<EditIcon />}
-                onClick={() => setUpdateDialogOpen(true)}
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={handleDownloadInvoice}
               >
-                Update Status
+                Invoice
               </Button>
-            )}
+              {user?.role === "admin" && (
+                <Button
+                  variant="contained"
+                  startIcon={<EditIcon />}
+                  onClick={() => setUpdateDialogOpen(true)}
+                >
+                  Update
+                </Button>
+              )}
+            </Stack>
           </Box>
         </Box>
 
-        {/* Status Overview */}
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Grid container spacing={3} alignItems="center">
-            <Grid item xs={12} md={8}>
-              <Typography variant="h6" gutterBottom>
-                Current Status
-              </Typography>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                <Chip
-                  icon={statusIcons[order.status]}
-                  label={order.status}
-                  color={statusColors[order.status]}
-                  size="large"
-                  variant="filled"
-                />
-                <Typography variant="body2" color="text.secondary">
-                  Estimated completion: {formatDate(order.estimatedCompletion)}
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Box sx={{ textAlign: "center" }}>
-                <Typography variant="h4" color="primary" gutterBottom>
-                  ₹{order.total}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {order.paymentStatus}
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
-        </Paper>
-      </Box>
+        <Grid container spacing={4}>
+          {/* Main Info */}
+          <Grid size={{ xs: 12, md: 8 }}>
+            {/* Quick Status Card */}
+            <StyledCard sx={{ mb: 3 }}>
+              <CardContent sx={{ p: 3 }}>
+                <Grid container spacing={2} alignItems="center">
+                  <Grid size={{ xs: 12, sm: 8 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+                      Current Status
+                    </Typography>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Chip
+                        icon={statusIcons[order.status]}
+                        label={order.status}
+                        color={getStatusColor(order.status)}
+                        sx={{ fontWeight: 700, px: 1 }}
+                      />
+                      <Typography variant="body2" color="text.secondary">
+                        Est. Completion: {formatDate(order.estimatedCompletion)}
+                      </Typography>
+                    </Stack>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 4 }} sx={{ textAlign: { sm: 'right' } }}>
+                    <Typography variant="h4" fontWeight={800} color="primary">
+                      {formatCurrency(order.total)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase' }}>
+                      {order.paymentStatus}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </StyledCard>
 
-      <Grid container spacing={4}>
-        {/* Left Column - Order Details */}
-        <Grid item xs={12} md={8}>
-          {/* Order Progress */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Order Progress
-            </Typography>
-            <Stepper activeStep={getCurrentStep()} orientation="vertical">
-              {statusSteps.map((step, index) => (
-                <Step key={step}>
-                  <StepLabel
-                    StepIconComponent={() => (
-                      <Avatar
-                        sx={{
-                          bgcolor:
-                            getCurrentStep() > index
-                              ? "primary.main"
-                              : "grey.300",
-                          color:
-                            getCurrentStep() > index
-                              ? "white"
-                              : "text.secondary",
+            {/* Stepper */}
+            <Paper sx={{ p: 4, borderRadius: 4, mb: 3 }}>
+              <Typography variant="h6" fontWeight={700} gutterBottom sx={{ mb: 3 }}>
+                Order Journey
+              </Typography>
+              <Stepper activeStep={getCurrentStep()} orientation="vertical">
+                {statusSteps.map((step, index) => {
+                  const log = order.statusLogs?.find(l => l.status === step);
+                  return (
+                    <Step key={step}>
+                      <StepLabel
+                        error={order.status === "Cancelled" && step === "Cancelled"}
+                        StepIconProps={{
+                          sx: { 
+                            '&.Mui-active': { color: theme.palette.primary.main },
+                            '&.Mui-completed': { color: theme.palette.success.main },
+                          }
                         }}
                       >
-                        {index + 1}
-                      </Avatar>
-                    )}
-                  >
-                    {step}
-                  </StepLabel>
-                  <StepContent>
-                    {order.statusLogs.find((log) => log.status === step) && (
-                      <Box sx={{ mt: 1, mb: 2 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          {formatDate(
-                            order.statusLogs.find((log) => log.status === step)
-                              .timestamp
-                          )}
+                        <Typography fontWeight={getCurrentStep() > index ? 600 : 400}>
+                          {step}
                         </Typography>
-                        <Typography variant="body2">
-                          {
-                            order.statusLogs.find((log) => log.status === step)
-                              .note
-                          }
+                      </StepLabel>
+                      <StepContent>
+                        {log && (
+                          <Box sx={{ py: 1 }}>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              {formatDateTime(log.timestamp)}
+                            </Typography>
+                            <Typography variant="body2">{log.note}</Typography>
+                          </Box>
+                        )}
+                      </StepContent>
+                    </Step>
+                  );
+                })}
+              </Stepper>
+            </Paper>
+
+            {/* Items */}
+            <Paper sx={{ p: 4, borderRadius: 4, mb: 3 }}>
+              <Typography variant="h6" fontWeight={700} gutterBottom sx={{ mb: 3 }}>
+                Laundry Items
+              </Typography>
+              <List disablePadding>
+                {order.items?.map((item, index) => (
+                  <React.Fragment key={index}>
+                    <ListItem sx={{ py: 2, px: 0 }}>
+                      <ListItemIcon>
+                        <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
+                          <LaundryIcon />
+                        </Avatar>
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={
+                          <Typography fontWeight={600}>
+                            {item.quantity}x {item.type}
+                          </Typography>
+                        }
+                        secondary={item.service}
+                      />
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Typography fontWeight={700}>{formatCurrency(item.price * item.quantity)}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatCurrency(item.price)} each
                         </Typography>
                       </Box>
-                    )}
-                  </StepContent>
-                </Step>
-              ))}
-            </Stepper>
-          </Paper>
-
-          {/* Items Details */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Items ({order.items.length})
-            </Typography>
-            <List>
-              {order.items.map((item, index) => (
-                <React.Fragment key={index}>
-                  <ListItem>
-                    <ListItemIcon>
-                      <Avatar sx={{ bgcolor: "primary.main" }}>
-                        {item.type === "Shirt" && "👕"}
-                        {item.type === "Pants" && "👖"}
-                        {item.type === "Dress" && "👗"}
-                        {item.type === "Suit" && "🤵"}
-                        {item.type === "Bedsheet" && "🛏️"}
-                        {item.type === "Towel" && "🛁"}
-                        {item.type === "Curtain" && "🪟"}
-                        {item.type === "Other" && "👕"}
-                      </Avatar>
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={`${item.quantity}x ${item.type}`}
-                      secondary={
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Service: {item.service}
-                          </Typography>
-                          {item.specialInstructions && (
-                            <Typography variant="body2" color="text.secondary">
-                              Instructions: {item.specialInstructions}
-                            </Typography>
-                          )}
-                          <Typography variant="body2" color="primary">
-                            ₹{item.price} each
-                          </Typography>
-                        </Box>
-                      }
-                    />
-                    <Typography variant="h6" color="primary">
-                      ₹{item.price * item.quantity}
-                    </Typography>
-                  </ListItem>
-                  {index < order.items.length - 1 && <Divider />}
-                </React.Fragment>
-              ))}
-            </List>
-          </Paper>
-
-          {/* Pickup & Delivery */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Pickup & Delivery
-            </Typography>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography
-                      variant="subtitle1"
-                      color="primary"
-                      gutterBottom
-                    >
-                      Pickup Details
-                    </Typography>
-                    <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-                      <LocationIcon sx={{ mr: 1, color: "text.secondary" }} />
-                      <Typography variant="body2">
-                        {order.pickup.address}
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Date: {formatDate(order.pickup.date)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Time: {order.pickup.timeSlot}
-                    </Typography>
-                    {order.pickup.instructions && (
-                      <Typography variant="body2" color="text.secondary">
-                        Instructions: {order.pickup.instructions}
-                      </Typography>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography
-                      variant="subtitle1"
-                      color="primary"
-                      gutterBottom
-                    >
-                      Delivery Details
-                    </Typography>
-                    <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-                      <CheckIcon sx={{ mr: 1, color: "text.secondary" }} />
-                      <Typography variant="body2">
-                        {order.delivery.address}
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Date: {formatDate(order.delivery.date)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Time: {order.delivery.timeSlot}
-                    </Typography>
-                    {order.delivery.instructions && (
-                      <Typography variant="body2" color="text.secondary">
-                        Instructions: {order.delivery.instructions}
-                      </Typography>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Customer Preferences */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Customer Preferences
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={6} md={3}>
-                <Typography variant="body2" color="text.secondary">
-                  Detergent
-                </Typography>
-                <Typography variant="body1">
-                  {order.customerPreferences.detergentType}
-                </Typography>
-              </Grid>
-              <Grid item xs={6} md={3}>
-                <Typography variant="body2" color="text.secondary">
-                  Fabric Softener
-                </Typography>
-                <Typography variant="body1">
-                  {order.customerPreferences.fabricSoftener ? "Yes" : "No"}
-                </Typography>
-              </Grid>
-              <Grid item xs={6} md={3}>
-                <Typography variant="body2" color="text.secondary">
-                  Starch Level
-                </Typography>
-                <Typography variant="body1">
-                  {order.customerPreferences.starchLevel}
-                </Typography>
-              </Grid>
-              <Grid item xs={6} md={3}>
-                <Typography variant="body2" color="text.secondary">
-                  Ironing
-                </Typography>
-                <Typography variant="body1">
-                  {order.customerPreferences.ironing ? "Yes" : "No"}
-                </Typography>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Notes */}
-          {(order.customerNotes || order.staffNotes) && (
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Notes
-              </Typography>
-              {order.customerNotes && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" color="primary">
-                    Customer Notes:
-                  </Typography>
-                  <Typography variant="body2">{order.customerNotes}</Typography>
-                </Box>
-              )}
-              {order.staffNotes && (
-                <Box>
-                  <Typography variant="subtitle2" color="primary">
-                    Staff Notes:
-                  </Typography>
-                  <Typography variant="body2">{order.staffNotes}</Typography>
-                </Box>
-              )}
+                    </ListItem>
+                    {index < (order.items?.length || 0) - 1 && <Divider />}
+                  </React.Fragment>
+                ))}
+              </List>
             </Paper>
-          )}
-        </Grid>
 
-        {/* Right Column - Sidebar */}
-        <Grid item xs={12} md={4}>
-          {/* Order Summary */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Order Summary
-            </Typography>
-            <Box sx={{ mb: 2 }}>
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
-              >
-                <Typography variant="body2">Subtotal:</Typography>
-                <Typography variant="body2">₹{order.subtotal}</Typography>
-              </Box>
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
-              >
-                <Typography variant="body2">Tax:</Typography>
-                <Typography variant="body2">₹{order.tax}</Typography>
-              </Box>
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
-              >
-                <Typography variant="body2">Discount:</Typography>
-                <Typography variant="body2" color="success.main">
-                  -₹{order.discount}
-                </Typography>
-              </Box>
-              <Divider sx={{ my: 1 }} />
-              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                <Typography variant="h6">Total:</Typography>
-                <Typography variant="h6" color="primary">
-                  ₹{order.total}
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-
-          {/* Payment Information */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Payment Information
-            </Typography>
-            <Box sx={{ mb: 2 }}>
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
-              >
-                <Typography variant="body2">Status:</Typography>
-                <Chip
-                  label={order.paymentStatus}
-                  color={order.paymentStatus === "Paid" ? "success" : "warning"}
-                  size="small"
-                />
-              </Box>
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
-              >
-                <Typography variant="body2">Method:</Typography>
-                <Typography variant="body2">{order.paymentMethod}</Typography>
-              </Box>
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
-              >
-                <Typography variant="body2">Transaction ID:</Typography>
-                <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
-                  {order.transactionId}
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-
-          {/* Tracking Information */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Tracking Information
-            </Typography>
-            <Box sx={{ mb: 2 }}>
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
-              >
-                <Typography variant="body2">Tracking Code:</Typography>
-                <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
-                  {order.trackingCode}
-                </Typography>
-              </Box>
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
-              >
-                <Typography variant="body2">NFC Tag:</Typography>
-                <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
-                  {order.nfcTag}
-                </Typography>
-              </Box>
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
-              >
-                <Typography variant="body2">Shelf Location:</Typography>
-                <Typography variant="body2">{order.shelfLocation}</Typography>
-              </Box>
-            </Box>
-          </Paper>
-
-          {/* Assigned Staff */}
-          {order.assignedTo && (
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Assigned Staff
-              </Typography>
-              <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                <Avatar sx={{ mr: 2, bgcolor: "primary.main" }}>
-                  {order.assignedTo.name.charAt(0)}
-                </Avatar>
-                <Box>
-                  <Typography variant="subtitle1">
-                    {order.assignedTo.name}
+            {/* Pickup & Delivery */}
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Paper sx={{ p: 3, borderRadius: 4, height: '100%', border: `1px solid ${theme.palette.divider}` }}>
+                  <Typography variant="button" color="primary" fontWeight={700} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LocationIcon fontSize="small" /> Pickup Detail
+                  </Typography>
+                  <Typography variant="body2" fontWeight={600} gutterBottom>
+                    {order.pickup?.address}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {order.assignedTo.phone}
+                    {formatDate(order.pickup?.date)} • {order.pickup?.timeSlot}
                   </Typography>
-                </Box>
-              </Box>
-            </Paper>
-          )}
+                </Paper>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Paper sx={{ p: 3, borderRadius: 4, height: '100%', border: `1px solid ${theme.palette.divider}` }}>
+                  <Typography variant="button" color="secondary" fontWeight={700} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CheckIcon fontSize="small" /> Delivery Detail
+                  </Typography>
+                  <Typography variant="body2" fontWeight={600} gutterBottom>
+                    {order.delivery?.address}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {formatDate(order.delivery?.date)} • {order.delivery?.timeSlot}
+                  </Typography>
+                </Paper>
+              </Grid>
+            </Grid>
+          </Grid>
 
-          {/* Status Timeline */}
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Status Timeline
-            </Typography>
-            <Timeline position="right">
-              {order.statusLogs.map((log, index) => (
-                <TimelineItem key={index}>
-                  <TimelineOppositeContent
-                    sx={{ m: "auto 0" }}
-                    variant="body2"
-                    color="text.secondary"
-                  >
-                    {formatTime(log.timestamp)}
-                  </TimelineOppositeContent>
-                  <TimelineSeparator>
-                    <TimelineDot
-                      color={
-                        index === order.statusLogs.length - 1
-                          ? "primary"
-                          : "grey"
-                      }
+          {/* Sidebar */}
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Stack spacing={3}>
+              {/* Order Summary */}
+              <StyledCard>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" fontWeight={700}>
+                      Order Summary
+                    </Typography>
+                    <Chip 
+                      label={order.paymentStatus} 
+                      size="small" 
+                      color={order.paymentStatus === 'Paid' ? 'success' : 'warning'} 
+                      variant="tonal"
+                      sx={{ fontWeight: 700 }}
                     />
-                    {index < order.statusLogs.length - 1 && (
-                      <TimelineConnector />
-                    )}
-                  </TimelineSeparator>
-                  <TimelineContent sx={{ py: "12px", px: 2 }}>
-                    <Typography variant="subtitle2" component="span">
-                      {log.status}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {log.note}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      by {log.updatedBy}
-                    </Typography>
-                  </TimelineContent>
-                </TimelineItem>
-              ))}
-            </Timeline>
-          </Paper>
-        </Grid>
-      </Grid>
+                  </Box>
+                  <Stack spacing={1}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <Typography variant="body2" color="text.secondary">Subtotal</Typography>
+                      <Typography variant="body2">{formatCurrency(order.subtotal)}</Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <Typography variant="body2" color="text.secondary">Tax (10%)</Typography>
+                      <Typography variant="body2">{formatCurrency(order.tax)}</Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <Typography variant="body2" color="text.secondary">Discount</Typography>
+                      <Typography variant="body2" color="success.main">-{formatCurrency(order.discount)}</Typography>
+                    </Box>
+                    <Divider sx={{ my: 1 }} />
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Typography variant="subtitle1" fontWeight={700}>
+                        {order.paymentStatus === 'Paid' ? 'Total Paid' : 'Amount Due'}
+                      </Typography>
+                      <Typography variant="h6" fontWeight={800} color="primary">
+                        {formatCurrency(order.total)}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </StyledCard>
 
-      {/* Status Update Dialog */}
+              {/* Preferences */}
+              <StyledCard>
+                <CardContent>
+                  <Typography variant="h6" fontWeight={700} gutterBottom>
+                    Preferences
+                  </Typography>
+                  <Stack spacing={2} sx={{ mt: 2 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">Detergent Type</Typography>
+                      <Typography variant="body2" fontWeight={600}>{order.customerPreferences?.detergentType || "Standard"}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">Fabric Softener</Typography>
+                      <Typography variant="body2" fontWeight={600}>{order.customerPreferences?.fabricSoftener ? "Yes" : "No"}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">Ironing</Typography>
+                      <Typography variant="body2" fontWeight={600}>{order.customerPreferences?.ironing ? "Yes" : "No"}</Typography>
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </StyledCard>
+
+              {/* NFC & Tracking */}
+              <StyledCard>
+                <CardContent>
+                  <Typography variant="h6" fontWeight={700} gutterBottom>
+                    Tracking
+                  </Typography>
+                  <Stack spacing={2} sx={{ mt: 2 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">Tracking Code</Typography>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{order.trackingCode}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">NFC Tag ID</Typography>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{order.nfcTag}</Typography>
+                    </Box>
+                    {order.shelfLocation && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" display="block">Shelf Location</Typography>
+                        <Typography variant="body2">{order.shelfLocation}</Typography>
+                      </Box>
+                    )}
+                  </Stack>
+                </CardContent>
+              </StyledCard>
+            </Stack>
+          </Grid>
+        </Grid>
+      </motion.div>
+
+      {/* Update Dialog (Admin) */}
       <Dialog
         open={updateDialogOpen}
         onClose={() => setUpdateDialogOpen(false)}
         maxWidth="sm"
         fullWidth
+        PaperProps={{ sx: { borderRadius: 4 } }}
       >
-        <DialogTitle>Update Order Status</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>Update Order Status</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2 }}>
-            <FormControl fullWidth sx={{ mb: 2 }}>
+            <FormControl fullWidth sx={{ mb: 3 }}>
               <InputLabel>New Status</InputLabel>
               <Select
                 value={newStatus}
                 onChange={(e) => setNewStatus(e.target.value)}
                 label="New Status"
               >
-                {statusSteps.map((status) => (
-                  <MenuItem key={status} value={status}>
-                    {status}
-                  </MenuItem>
+                {statusSteps.map((s) => (
+                  <MenuItem key={s} value={s}>{s}</MenuItem>
                 ))}
+                <MenuItem value="Cancelled">Cancelled</MenuItem>
               </Select>
             </FormControl>
             <TextField
               fullWidth
               multiline
               rows={3}
-              label="Status Note (Optional)"
+              label="Status Note"
               value={statusNote}
               onChange={(e) => setStatusNote(e.target.value)}
-              placeholder="Add any additional notes about this status change..."
+              placeholder="Explain the update..."
             />
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
           <Button onClick={() => setUpdateDialogOpen(false)}>Cancel</Button>
           <Button
             onClick={handleStatusUpdate}
             variant="contained"
             disabled={!newStatus || updating}
+            sx={{ px: 4 }}
           >
-            {updating ? <CircularProgress size={20} /> : "Update Status"}
+            {updating ? "Updating..." : "Save Changes"}
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+    </MainLayout>
   );
 }

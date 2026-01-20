@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { Box, Typography, Button, useTheme } from '@mui/material';
+import { ThemeToggleIcon } from '../components/ThemeToggle';
+import { useTheme as useCustomTheme } from '../context/ThemeContext';
 
 const typingText = "_Track Your Laundry with Smart Technology";
 
@@ -89,6 +92,8 @@ export default function Landing() {
   const [isLoaded, setIsLoaded] = useState(false);
   const idx = useRef(0);
   const navigate = useNavigate();
+  const theme = useTheme();
+  const { themeMode } = useCustomTheme();
 
   useEffect(() => {
     setIsLoaded(true);
@@ -177,23 +182,34 @@ export default function Landing() {
   ];
 
   return (
-    <div
-      style={{
-        minHeight: "97vh",
-        width: "98vw",
+    <Box
+      sx={{
+        minHeight: "100vh",
+        width: "100vw",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+        background: theme.palette.background.gradient,
         overflow: "hidden",
         position: "relative",
-        fontFamily: "'Inter', sans-serif",
-        color: "#1e293b",
+        fontFamily: theme.typography.fontFamily,
+        color: theme.palette.text.primary,
       }}
     >
+      {/* Theme Toggle Button */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 24,
+          right: 24,
+          zIndex: 10,
+        }}
+      >
+        <ThemeToggleIcon size="large" />
+      </Box>
+      
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
         
         @keyframes drift {
           0% { transform: translateX(0); }
@@ -221,10 +237,10 @@ export default function Landing() {
         }
         
         .main-title {
-          font-family: 'Inter', sans-serif;
+          font-family: ${theme.typography.fontFamily};
           font-weight: 800;
           font-size: clamp(2.5rem, 8vw, 4.5rem);
-          color: inherit;
+          color: ${theme.palette.text.primary};
           margin: 0 0 32px 0;
           text-align: center;
           letter-spacing: -2px;
@@ -236,12 +252,12 @@ export default function Landing() {
           font-family: 'JetBrains Mono', monospace;
           font-weight: 500;
           font-size: clamp(1rem, 3vw, 1.3rem);
-          color: #64748b;
+          color: ${theme.palette.text.secondary};
           margin: 0 0 64px 0;
           text-align: center;
           letter-spacing: 0.5px;
           min-height: 50px;
-          border-right: 2px solid #3b82f6;
+          border-right: 2px solid ${theme.palette.primary.main};
           padding-right: 8px;
           animation: slideUp 1s ease-out 0.4s both;
         }
@@ -255,17 +271,19 @@ export default function Landing() {
         }
         
         .btn-primary {
-          background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+          background: ${theme.palette.mode === 'dark' 
+            ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`
+            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`};
           color: white;
           border: none;
           padding: 16px 40px;
           font-size: 1.1rem;
           font-weight: 600;
           border-radius: 12px;
-          font-family: 'Inter', sans-serif;
+          font-family: ${theme.typography.fontFamily};
           cursor: pointer;
           transition: all 0.3s ease;
-          box-shadow: 0 4px 20px rgba(59, 130, 246, 0.25);
+          box-shadow: 0 4px 20px ${theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(59, 130, 246, 0.25)'};
           position: relative;
           overflow: hidden;
         }
@@ -291,17 +309,17 @@ export default function Landing() {
         }
         
         .btn-secondary {
-          background: white;
-          color: #3b82f6;
-          border: 2px solid #3b82f6;
+          background: ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'white'};
+          color: ${theme.palette.primary.main};
+          border: 2px solid ${theme.palette.primary.main};
           padding: 16px 40px;
           font-size: 1.1rem;
           font-weight: 600;
           border-radius: 12px;
-          font-family: 'Inter', sans-serif;
+          font-family: ${theme.typography.fontFamily};
           cursor: pointer;
           transition: all 0.3s ease;
-          box-shadow: 0 4px 20px rgba(59, 130, 246, 0.1);
+          box-shadow: 0 4px 20px ${theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(59, 130, 246, 0.1)'};
           position: relative;
           overflow: hidden;
         }
@@ -372,7 +390,7 @@ export default function Landing() {
           display: flex;
           align-items: center;
           gap: 12px;
-          color: #64748b;
+          color: ${theme.palette.text.secondary};
           font-size: 0.95rem;
           font-weight: 500;
         }
@@ -526,6 +544,6 @@ export default function Landing() {
           </div>
         </div>
       </div>
-    </div>
+    </Box>
   );
 }

@@ -6,6 +6,7 @@ import {
   Typography,
   Paper,
   InputAdornment,
+  useTheme,
 } from "@mui/material";
 import { Alert } from "@mui/material";
 import { toast } from "react-toastify";
@@ -14,7 +15,8 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import LocalLaundryServiceIcon from "@mui/icons-material/LocalLaundryService";
-import bgImage from "../assets/laundry-bg.jpg";
+import { ThemeToggleIcon } from '../components/ThemeToggle';
+import bgImage from '../assets/laundry-bg.jpg';
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -22,6 +24,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login: authLogin } = useAuth();
   const navigate = useNavigate();
+  const theme = useTheme();
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -62,29 +65,38 @@ export default function Login() {
       justifyContent="center"
       sx={{
         backgroundImage: `url(${bgImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-        position: "fixed",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        position: "relative",
         width: "100vw",
         height: "100vh",
         overflow: "hidden",
-        top: 0,
-        left: 0,
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: theme.palette.mode === 'dark' 
+            ? 'rgba(0, 0, 0, 0.7)' 
+            : 'rgba(255, 255, 255, 0.8)',
+          zIndex: 1,
+        },
       }}
     >
-      {/* Overlay */}
+      {/* Theme Toggle */}
       <Box
         sx={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          bgcolor: "rgba(255,255,255,0.7)", // or use a blue tint: 'rgba(178,235,242,0.7)'
-          zIndex: 1,
+          top: 24,
+          right: 24,
+          zIndex: 20,
         }}
-      />
+      >
+        <ThemeToggleIcon size="medium" />
+      </Box>
       <motion.div
         initial={{ opacity: 0, y: 60 }}
         animate={{ opacity: 1, y: 0 }}
@@ -93,10 +105,27 @@ export default function Login() {
           width: "100%",
           maxWidth: 400,
           position: "relative",
-          zIndex: 2,
+          zIndex: 10,
         }}
       >
-        <Paper elevation={8} sx={{ p: 4, borderRadius: 4 }}>
+        <Paper 
+          elevation={24} 
+          sx={{ 
+            p: 4, 
+            borderRadius: 4, 
+            background: theme.palette.mode === 'dark' 
+              ? 'rgba(30, 41, 59, 0.9)' 
+              : 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: theme.palette.mode === 'dark'
+              ? '1px solid rgba(255, 255, 255, 0.1)'
+              : '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+              : '0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.3)',
+          }}
+        >
           <Box display="flex" flexDirection="column" alignItems="center" mb={2}>
             <motion.div
               initial={{ scale: 0 }}
@@ -104,7 +133,7 @@ export default function Login() {
               transition={{ duration: 0.8, type: "tween" }}
             >
               <LocalLaundryServiceIcon
-                sx={{ fontSize: 60, color: "#00bcd4" }}
+                sx={{ fontSize: 60, color: theme.palette.primary.main }}
               />
             </motion.div>
             <Typography

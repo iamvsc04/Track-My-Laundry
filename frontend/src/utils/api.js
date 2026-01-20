@@ -101,6 +101,29 @@ export const getShelfById = (shelfId) => api.get(`/shelves/${shelfId}`);
 export const updateShelfStatus = (shelfId, statusData) =>
   api.patch(`/shelves/${shelfId}/status`, statusData);
 
+// Reward API calls
+export const getLoyaltyProfile = () => api.get("/rewards/profile");
+export const getRewardsHistory = (params = {}) =>
+  api.get("/rewards/history", { params });
+export const getRedemptionOptions = () => api.get("/rewards/options");
+export const redeemPoints = (data) => api.post("/rewards/redeem", data);
+export const getRedemptionHistory = (params = {}) =>
+  api.get("/rewards/redemption-history", { params });
+export const getLeaderboard = (params = {}) =>
+  api.get("/rewards/leaderboard", { params });
+export const getAchievementProgress = () => api.get("/rewards/achievements");
+export const processReferral = (referralCode) =>
+  api.post("/rewards/referral", { referralCode });
+
+// Report API calls
+export const generateReport = (startDate, endDate) =>
+  api.get("/reports/daily", {
+    params: { startDate, endDate },
+    responseType: "blob",
+  });
+
+
+
 // Utility functions
 export const formatCurrency = (amount, currency = "INR") => {
   return new Intl.NumberFormat("en-IN", {

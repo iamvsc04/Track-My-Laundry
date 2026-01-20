@@ -77,82 +77,33 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getOrders, updateOrderStatus, getNotifications } from "../utils/api";
+import {
+  getOrders,
+  updateOrderStatus,
+  getNotifications,
+  getShelves,
+  updateShelfStatus,
+  generateReport,
+} from "../utils/api";
 import { toast } from "react-toastify";
 import NFCScanner from "../components/NFCScanner";
 
-// Mock data for demonstration
-const mockOrders = [
-  {
-    _id: "1",
-    orderNumber: "LAU12345678",
-    customerName: "John Doe",
-    customerPhone: "+91 98765 43210",
-    customerEmail: "john@example.com",
-    status: "Pending",
-    serviceType: "Wash & Fold",
-    items: [{ type: "Shirt", quantity: 5, service: "Regular Wash" }],
-    totalAmount: 250,
-    pickup: {
-      address: "123 Main St, City",
-      date: "2024-01-15",
-      timeSlot: "09:00-12:00",
-    },
-    delivery: {
-      address: "123 Main St, City",
-      date: "2024-01-17",
-      timeSlot: "15:00-18:00",
-    },
-    createdAt: "2024-01-14T10:00:00Z",
-    estimatedCompletion: "2024-01-16T18:00:00Z",
-  },
-  {
-    _id: "2",
-    orderNumber: "LAU87654321",
-    customerName: "Jane Smith",
-    customerPhone: "+91 98765 12345",
-    customerEmail: "jane@example.com",
-    status: "Washing",
-    serviceType: "Dry Clean",
-    items: [{ type: "Dress", quantity: 2, service: "Premium Dry Clean" }],
-    totalAmount: 400,
-    pickup: {
-      address: "456 Oak Ave, City",
-      date: "2024-01-14",
-      timeSlot: "14:00-17:00",
-    },
-    delivery: {
-      address: "456 Oak Ave, City",
-      date: "2024-01-16",
-      timeSlot: "10:00-13:00",
-    },
-    createdAt: "2024-01-13T15:00:00Z",
-    estimatedCompletion: "2024-01-15T16:00:00Z",
-  },
-  {
-    _id: "3",
-    orderNumber: "LAU11223344",
-    customerName: "Mike Johnson",
-    customerPhone: "+91 98765 67890",
-    customerEmail: "mike@example.com",
-    status: "Ready for Pickup",
-    serviceType: "Iron Only",
-    items: [{ type: "Pants", quantity: 3, service: "Premium Iron" }],
-    totalAmount: 150,
-    pickup: {
-      address: "789 Pine St, City",
-      date: "2024-01-12",
-      timeSlot: "11:00-14:00",
-    },
-    delivery: {
-      address: "789 Pine St, City",
-      date: "2024-01-14",
-      timeSlot: "16:00-19:00",
-    },
-    createdAt: "2024-01-11T09:00:00Z",
-    estimatedCompletion: "2024-01-13T14:00:00Z",
-  },
-];
+// Import chart components
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+} from 'recharts';
 
 const statusColors = {
   Pending: "#ff9800",
@@ -183,6 +134,7 @@ export default function AdminPanel() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
   const [orders, setOrders] = useState([]);
+  const [analytics, setAnalytics] = useState({});
   const [loading, setLoading] = useState(true);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -190,10 +142,127 @@ export default function AdminPanel() {
   const [statusNote, setStatusNote] = useState("");
   const [updating, setUpdating] = useState(false);
   const [nfcScannerOpen, setNfcScannerOpen] = useState(false);
+  const [dateRange, setDateRange] = useState('7d');
+  const [shelves, setShelves] = useState([]);
+  const [shelfDialogOpen, setShelfDialogOpen] = useState(false);
+  const [selectedShelf, setSelectedShelf] = useState(null);
+
+  const handleGenerateReport = async () => {
+    try {
+      const toastId = toast.loading("Generating report...");
+      // Calculate start/end based on dateRange state or default
+      const end = new Date();
+      const start = new Date();
+      start.setDate(start.getDate() - (dateRange === '30d' ? 30 : 7)); // Simple logic for now
+
+      const response = await generateReport(start.toISOString(), end.toISOString());
+      
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `report-${new Date().toISOString().slice(0,10)}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.dismiss(toastId);
+      toast.success("Report generated successfully");
+    } catch (error) {
+      console.error("Report generation failed:", error);
+      toast.error("Failed to generate report");
+    }
+  };
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+    fetchAnalytics();
+    fetchShelves();
+  }, [dateRange]);
+
+  const fetchShelves = async () => {
+    try {
+      const response = await getShelves();
+      setShelves(response.data || []);
+    } catch (error) {
+       console.error("Error fetching shelves:", error);
+       // Mock for now if API fails (or while setting up)
+       // setShelves([
+       //  { code: "A1", isOccupied: false },
+       //  { code: "A2", isOccupied: true, currentOrder: { orderNumber: "ORD-123" } }
+       // ]);
+    }
+  };
+
+  const handleShelfClick = (shelf) => {
+    setSelectedShelf(shelf);
+    setShelfDialogOpen(true);
+  };
+
+  const clearShelf = async () => {
+     if (!selectedShelf) return;
+     try {
+       await updateShelfStatus(selectedShelf.code, { isOccupied: false, currentOrder: null });
+       toast.success(`Shelf ${selectedShelf.code} cleared`);
+       setShelfDialogOpen(false);
+       fetchShelves();
+     } catch(err) {
+       console.error(err);
+       toast.error("Failed to update shelf");
+     }
+  };
+
+
+  const fetchAnalytics = async () => {
+    try {
+      // Mock analytics data for now - replace with actual API calls
+      const mockAnalyticsData = {
+        overview: {
+          totalOrders: 156,
+          activeOrders: 23,
+          completedToday: 8,
+          totalRevenue: 45600,
+          averageOrderValue: 292,
+          customerSatisfaction: 4.7,
+        },
+        ordersByStatus: [
+          { name: 'Pending', value: 12, color: '#ff9800' },
+          { name: 'Washing', value: 8, color: '#2196f3' },
+          { name: 'Ironing', value: 6, color: '#ff5722' },
+          { name: 'Ready', value: 15, color: '#4caf50' },
+          { name: 'Delivered', value: 89, color: '#9c27b0' },
+        ],
+        dailyOrders: [
+          { date: '2024-01-08', orders: 12, revenue: 3200 },
+          { date: '2024-01-09', orders: 15, revenue: 4100 },
+          { date: '2024-01-10', orders: 8, revenue: 2800 },
+          { date: '2024-01-11', orders: 18, revenue: 5200 },
+          { date: '2024-01-12', orders: 22, revenue: 6100 },
+          { date: '2024-01-13', orders: 16, revenue: 4900 },
+          { date: '2024-01-14', orders: 19, revenue: 5400 },
+        ],
+        serviceTypes: [
+          { name: 'Wash & Fold', value: 45, color: '#4caf50' },
+          { name: 'Dry Clean', value: 28, color: '#2196f3' },
+          { name: 'Iron Only', value: 15, color: '#ff9800' },
+          { name: 'Premium Wash', value: 12, color: '#9c27b0' },
+        ],
+        turnaroundTimes: [
+          { day: 'Mon', avgHours: 24, target: 24 },
+          { day: 'Tue', avgHours: 22, target: 24 },
+          { day: 'Wed', avgHours: 26, target: 24 },
+          { day: 'Thu', avgHours: 20, target: 24 },
+          { day: 'Fri', avgHours: 28, target: 24 },
+          { day: 'Sat', avgHours: 18, target: 24 },
+          { day: 'Sun', avgHours: 16, target: 24 },
+        ],
+      };
+      setAnalytics(mockAnalyticsData);
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+      toast.error('Failed to fetch analytics data');
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -602,6 +671,7 @@ export default function AdminPanel() {
           <Tab label="Orders" />
           <Tab label="Analytics" />
           <Tab label="Staff" />
+          <Tab label="Shelves" />
         </Tabs>
       </Paper>
 
@@ -621,7 +691,7 @@ export default function AdminPanel() {
                 Quick Actions
               </Typography>
               <Grid container spacing={2}>
-                <Grid item>
+                <Grid>
                   <Button
                     variant="contained"
                     startIcon={<AddIcon />}
@@ -630,13 +700,17 @@ export default function AdminPanel() {
                     Create Order
                   </Button>
                 </Grid>
-                <Grid item>
+                <Grid>
                   <Button variant="outlined" startIcon={<PeopleIcon />}>
                     Add Staff
                   </Button>
                 </Grid>
-                <Grid item>
-                  <Button variant="outlined" startIcon={<AssessmentIcon />}>
+                <Grid>
+                  <Button 
+                    variant="outlined" 
+                    startIcon={<AssessmentIcon />}
+                    onClick={handleGenerateReport}
+                  >
                     Generate Report
                   </Button>
                 </Grid>
@@ -705,7 +779,7 @@ export default function AdminPanel() {
                 Performance Metrics
               </Typography>
               <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Card>
                     <CardContent>
                       <Typography variant="h6" gutterBottom>
@@ -737,7 +811,7 @@ export default function AdminPanel() {
                     </CardContent>
                   </Card>
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Card>
                     <CardContent>
                       <Typography variant="h6" gutterBottom>
@@ -763,6 +837,18 @@ export default function AdminPanel() {
             transition={{ duration: 0.3 }}
           >
             {renderStaffManagement()}
+          </motion.div>
+        )}
+
+        {activeTab === 4 && (
+          <motion.div
+            key="shelves"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {renderShelfManagement()}
           </motion.div>
         )}
       </AnimatePresence>

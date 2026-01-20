@@ -11,6 +11,8 @@ const orderRoutes = require("./routes/orderRoutes");
 const shelfRoutes = require("./routes/shelfRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const rewardRoutes = require("./routes/rewardRoutes");
+const reportRoutes = require("./routes/reportRoutes");
 
 const app = express();
 
@@ -55,6 +57,8 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/shelves", shelfRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/rewards", rewardRoutes);
+app.use("/api/reports", reportRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -14,6 +14,7 @@ import {
   Chip,
   styled,
   keyframes,
+  useTheme,
 } from "@mui/material";
 import { motion } from "framer-motion";
 import LocalLaundryServiceIcon from "@mui/icons-material/LocalLaundryService";
@@ -23,9 +24,10 @@ import PhoneIcon from "@mui/icons-material/Phone";
 import LockIcon from "@mui/icons-material/Lock";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useNavigate } from "react-router-dom";
-import bgImage from "../assets/laundry-bg.jpg";
 import { register } from "../utils/api";
 import { toast } from "react-toastify";
+import { ThemeToggleIcon } from '../components/ThemeToggle';
+import bgImage from '../assets/laundry-bg.jpg';
 
 // Styled components for custom animations
 const pulse = keyframes`
@@ -115,6 +117,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+  const theme = useTheme();
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -173,53 +176,41 @@ export default function Register() {
       justifyContent="center"
       sx={{
         backgroundImage: `url(${bgImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-        position: "fixed",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+        position: "relative",
         width: "100vw",
-        height: "100vh",
+        minHeight: "100vh",
         overflowY: "auto",
         overflowX: "hidden",
-        top: 0,
-        left: 0,
+        '&::before': {
+          content: '""',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: theme.palette.mode === 'dark' 
+            ? 'rgba(0, 0, 0, 0.7)' 
+            : 'rgba(255, 255, 255, 0.8)',
+          zIndex: 1,
+        },
       }}
     >
-      {/* Overlay */}
+      {/* Theme Toggle */}
       <Box
         sx={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          bgcolor: "rgba(255,255,255,0.7)",
-          zIndex: 1,
+          top: 24,
+          right: 24,
+          zIndex: 20,
         }}
-      />
-
-      {/* Animated background elements */}
-      <Box
-        sx={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 2 }}
       >
-        <AnimatedBackground
-          sx={{
-            top: -160,
-            right: -160,
-            background:
-              "linear-gradient(45deg, rgba(0, 188, 212, 0.3), rgba(33, 150, 243, 0.3))",
-          }}
-        />
-        <AnimatedBackground
-          sx={{
-            bottom: -160,
-            left: -160,
-            background:
-              "linear-gradient(45deg, rgba(33, 150, 243, 0.3), rgba(63, 81, 181, 0.3))",
-            animationDelay: "2s",
-          }}
-        />
+        <ThemeToggleIcon size="medium" />
       </Box>
+
 
       <motion.div
         initial={{ opacity: 0, y: 60 }}
@@ -229,10 +220,27 @@ export default function Register() {
           width: "100%",
           maxWidth: 450,
           position: "relative",
-          zIndex: 3,
+          zIndex: 10,
         }}
       >
-        <Paper elevation={8} sx={{ p: 3, borderRadius: 4 }}>
+        <Paper 
+          elevation={24} 
+          sx={{ 
+            p: 3, 
+            borderRadius: 4, 
+            background: theme.palette.mode === 'dark' 
+              ? 'rgba(30, 41, 59, 0.9)' 
+              : 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: theme.palette.mode === 'dark'
+              ? '1px solid rgba(255, 255, 255, 0.1)'
+              : '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+              : '0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.3)',
+          }}
+        >
           {/* Header */}
           <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
             <motion.div
@@ -241,7 +249,7 @@ export default function Register() {
               transition={{ duration: 0.8, type: "tween" }}
             >
               <LocalLaundryServiceIcon
-                sx={{ fontSize: 60, color: "#00bcd4" }}
+                sx={{ fontSize: 60, color: theme.palette.primary.main }}
               />
             </motion.div>
             <Typography

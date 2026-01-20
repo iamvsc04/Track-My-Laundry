@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-module.exports = (req, res, next) => {
+const protect = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'No token provided' });
@@ -13,4 +13,16 @@ module.exports = (req, res, next) => {
   } catch (err) {
     res.status(401).json({ message: 'Invalid token' });
   }
-}; 
+};
+
+const admin = (req, res, next) => {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'super-admin')) {
+    next();
+  } else {
+    res.status(401).json({ message: 'Not authorized as an admin' });
+  }
+};
+
+module.exports = protect;
+module.exports.protect = protect;
+module.exports.admin = admin; 

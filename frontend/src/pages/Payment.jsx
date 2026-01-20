@@ -47,7 +47,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getOrderById, createPayment, processPayment } from "../utils/api";
+import { getOrderById, createPayment, processPayment, formatCurrency } from "../utils/api";
 import { toast } from "react-toastify";
 
 const paymentMethods = [
@@ -55,33 +55,25 @@ const paymentMethods = [
     id: "upi",
     name: "UPI",
     icon: <PaymentIcon />,
-    color: "#1976d2",
-    description: "Pay using UPI apps like Google Pay, PhonePe, Paytm",
+    color: "#00bfa5",
+    description: "Pay using any UPI app like GPay, PhonePe",
     fields: ["upiId"],
   },
   {
     id: "card",
-    name: "Credit/Debit Card",
+    name: "Credit / Debit Card",
     icon: <CardIcon />,
-    color: "#2e7d32",
-    description: "Pay using Visa, MasterCard, or RuPay cards",
+    color: "#1a237e",
+    description: "Safe and secure card payments",
     fields: ["cardNumber", "expiryDate", "cvv", "cardholderName"],
   },
   {
     id: "netbanking",
     name: "Net Banking",
     icon: <BankIcon />,
-    color: "#ed6c02",
-    description: "Pay using your bank's net banking service",
-    fields: ["bankName", "accountNumber"],
-  },
-  {
-    id: "wallet",
-    name: "Digital Wallet",
-    icon: <WalletIcon />,
-    color: "#9c27b0",
-    description: "Pay using digital wallets like Paytm, PhonePe",
-    fields: ["walletType", "mobileNumber"],
+    color: "#f57c00",
+    description: "Pay directly from your bank account",
+    fields: ["bankName"],
   },
   {
     id: "cash",
@@ -129,7 +121,7 @@ export default function Payment() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeStep, setActiveStep] = useState(0);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cash");
   const [paymentForm, setPaymentForm] = useState({});
   const [processing, setProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -142,59 +134,8 @@ export default function Payment() {
   const fetchOrder = async () => {
     try {
       setLoading(true);
-      // For now, use mock data. Replace with actual API call
-      // const response = await getOrderById(token, orderId);
-      // setOrder(response.data);
-
-      // Mock order data
-      setOrder({
-        _id: orderId,
-        orderNumber: "LAU12345678",
-        status: "Pending",
-        serviceType: "Wash & Fold",
-        items: [
-          {
-            type: "Shirt",
-            quantity: 5,
-            price: 25,
-            specialInstructions: "Gentle wash",
-          },
-          {
-            type: "Pants",
-            quantity: 3,
-            price: 30,
-            specialInstructions: "No starch",
-          },
-          {
-            type: "Dress",
-            quantity: 2,
-            price: 35,
-            specialInstructions: "Hand wash",
-          },
-        ],
-        subtotal: 235,
-        tax: 23.5,
-        discount: 20,
-        total: 238.5,
-        pickup: {
-          address: "123 Main St, City, State 12345",
-          date: "2024-01-15",
-          timeSlot: "10:00 AM - 12:00 PM",
-        },
-        delivery: {
-          address: "123 Main St, City, State 12345",
-          date: "2024-01-17",
-          timeSlot: "2:00 PM - 4:00 PM",
-        },
-        customerPreferences: {
-          detergentType: "Eco-friendly",
-          fabricSoftener: true,
-          starchLevel: "None",
-          ironing: true,
-        },
-        customerNotes: "Please handle with care, some items are delicate",
-        createdAt: "2024-01-15T08:00:00Z",
-      });
+      const response = await getOrderById(orderId);
+      setOrder(response.data.data);
     } catch (error) {
       console.error("Error fetching order:", error);
       toast.error("Failed to fetch order details");
@@ -278,7 +219,7 @@ export default function Payment() {
         </Typography>
         <Grid container spacing={2}>
           {method.fields.includes("upiId") && (
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="UPI ID"
@@ -306,7 +247,7 @@ export default function Payment() {
           )}
 
           {method.fields.includes("expiryDate") && (
-            <Grid item xs={6}>
+            <Grid size={{ xs: 6 }}>
               <TextField
                 fullWidth
                 label="Expiry Date"
@@ -436,7 +377,7 @@ export default function Payment() {
                 Order Summary
               </Typography>
               <Grid container spacing={3}>
-                <Grid item xs={12} md={8}>
+                <Grid size={{ xs: 12, md: 8 }}>
                   <Typography variant="subtitle1" gutterBottom>
                     {order.serviceType}
                   </Typography>
@@ -474,68 +415,39 @@ export default function Payment() {
                           </ListItemIcon>
                           <ListItemText
                             primary={`${item.quantity}x ${item.type}`}
-                            secondary={`₹${item.price} each`}
+                            secondary={`${formatCurrency(item.price)} each`}
                           />
                           <Typography variant="body2" color="primary">
-                            ₹{item.price * item.quantity}
+                            {formatCurrency(item.price * item.quantity)}
                           </Typography>
                         </ListItem>
                       ))}
                     </List>
                   </Box>
                 </Grid>
-                <Grid item xs={12} md={4}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <Card variant="outlined">
                     <CardContent>
                       <Typography variant="h6" gutterBottom>
                         Payment Summary
                       </Typography>
                       <Box sx={{ mb: 2 }}>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            mb: 1,
-                          }}
-                        >
+                        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                           <Typography variant="body2">Subtotal:</Typography>
-                          <Typography variant="body2">
-                            ₹{order.subtotal}
-                          </Typography>
+                          <Typography variant="body2">{formatCurrency(order.subtotal)}</Typography>
                         </Box>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            mb: 1,
-                          }}
-                        >
+                        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                           <Typography variant="body2">Tax:</Typography>
-                          <Typography variant="body2">₹{order.tax}</Typography>
+                          <Typography variant="body2">{formatCurrency(order.tax)}</Typography>
                         </Box>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            mb: 1,
-                          }}
-                        >
+                        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                           <Typography variant="body2">Discount:</Typography>
-                          <Typography variant="body2" color="success.main">
-                            -₹{order.discount}
-                          </Typography>
+                          <Typography variant="body2" color="success.main">-{formatCurrency(order.discount || 0)}</Typography>
                         </Box>
                         <Divider sx={{ my: 1 }} />
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                          }}
-                        >
+                        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                           <Typography variant="h6">Total:</Typography>
-                          <Typography variant="h6" color="primary">
-                            ₹{order.total}
-                          </Typography>
+                          <Typography variant="h6" color="primary">{formatCurrency(order.total)}</Typography>
                         </Box>
                       </Box>
                     </CardContent>
@@ -559,7 +471,7 @@ export default function Payment() {
               </Typography>
               <Grid container spacing={2}>
                 {paymentMethods.map((method) => (
-                  <Grid item xs={12} sm={6} key={method.id}>
+                  <Grid size={{ xs: 12, sm: 6 }} key={method.id}>
                     <Card
                       variant={
                         selectedPaymentMethod === method.id

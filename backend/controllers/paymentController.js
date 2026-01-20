@@ -172,17 +172,16 @@ exports.downloadInvoice = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const { format = 'pdf' } = req.query;
 
     const payment = await Payment.findOne({ _id: id, user: userId })
-      .populate("order", "orderNumber items total")
+      .populate("order", "orderNumber items total subtotal tax discount serviceType pickup delivery")
       .populate("user", "name email mobile");
 
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
 
-    // For now, return invoice data as JSON
-    // In production, you'd generate a PDF
     const invoiceData = {
       invoiceNumber: payment.invoiceNumber,
       date: payment.createdAt,
@@ -195,6 +194,13 @@ exports.downloadInvoice = async (req, res) => {
         number: payment.order.orderNumber,
         items: payment.order.items,
         total: payment.order.total,
+        subtotal: payment.order.subtotal,
+        tax: payment.order.tax,
+        discount: payment.order.discount,
+        serviceType: payment.order.serviceType,
+        pickup: payment.order.pickup,
+        delivery: payment.order.delivery,
+        status: payment.order.status || 'Delivered',
       },
       payment: {
         method: payment.paymentMethod,
@@ -204,10 +210,24 @@ exports.downloadInvoice = async (req, res) => {
       },
     };
 
-    res.json({
-      message: "Invoice data retrieved successfully",
-      invoice: invoiceData,
-    });
+    if (format === 'pdf') {
+      const invoiceService = require('../services/invoiceService');
+      const pdf = await invoiceService.generateInvoicePDF(invoiceData);
+      
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="invoice-${payment.invoiceNumber}.pdf"`,
+        'Content-Length': pdf.length,
+      });
+      
+      res.send(pdf);
+    } else {
+      // Return JSON format for backward compatibility
+      res.json({
+        message: "Invoice data retrieved successfully",
+        invoice: invoiceData,
+      });
+    }
   } catch (error) {
     console.error("Invoice download error:", error);
     res.status(500).json({ message: "Failed to download invoice" });

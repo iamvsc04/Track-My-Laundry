@@ -10,8 +10,13 @@ const notificationSchema = new mongoose.Schema(
     message: { type: String, required: true },
     type: {
       type: String,
-      enum: ["order_update", "payment", "reminder", "system", "promo"],
-      default: "order_update",
+      enum: ["order", "order_update", "status_update", "payment", "payment_update", "reward", "promotion", "achievement", "reminder", "info", "warning", "success"],
+      default: "order",
+    },
+    color: {
+      type: String,
+      enum: ["primary", "success", "warning", "info", "error"],
+      default: "primary",
     },
 
     // Priority & Status

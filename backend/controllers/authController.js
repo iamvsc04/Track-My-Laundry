@@ -351,3 +351,134 @@ exports.resendVerificationEmail = async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
+// Get user profile
+exports.getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json({ user });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+// Update user profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name, email, mobile, profile } = req.body;
+    const userId = req.user.id;
+    
+    // Check if email or mobile already exists for other users
+    if (email || mobile) {
+      const existingUser = await User.findOne({
+        $and: [
+          { _id: { $ne: userId } },
+          { $or: [{ email }, { mobile }] }
+        ]
+      });
+      
+      if (existingUser) {
+        return res.status(400).json({ 
+          message: "Email or mobile already in use by another user" 
+        });
+      }
+    }
+    
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (mobile) updateData.mobile = mobile;
+    if (profile) updateData.profile = profile;
+    
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).select("-password");
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    res.json({ 
+      message: "Profile updated successfully",
+      user 
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+// Change password
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        message: "Current password and new password are required" 
+      });
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+    
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    
+    // Update password
+    await User.findByIdAndUpdate(userId, { 
+      password: hashedNewPassword 
+    });
+    
+    res.json({ message: "Password changed successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+// Update notification preferences
+exports.updateNotificationPreferences = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const preferences = req.body;
+    
+    const updateData = {};
+    if (preferences.email !== undefined) updateData["notifications.email"] = preferences.email;
+    if (preferences.sms !== undefined) updateData["notifications.sms"] = preferences.sms;
+    if (preferences.push !== undefined) updateData["notifications.push"] = preferences.push;
+    if (preferences.orderUpdates !== undefined) updateData["notifications.orderUpdates"] = preferences.orderUpdates;
+    if (preferences.promotions !== undefined) updateData["notifications.promotions"] = preferences.promotions;
+    if (preferences.rewards !== undefined) updateData["notifications.rewards"] = preferences.rewards;
+    if (preferences.reminders !== undefined) updateData["notifications.reminders"] = preferences.reminders;
+    
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateData },
+      { new: true }
+    ).select("notifications");
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    res.json({
+      message: "Notification preferences updated successfully",
+      preferences: user.notifications
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};

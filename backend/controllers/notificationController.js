@@ -25,10 +25,12 @@ exports.getUserNotifications = async (req, res) => {
     const total = await Notification.countDocuments(query);
 
     res.json({
-      notifications,
-      totalPages: Math.ceil(total / limit),
-      currentPage: parseInt(page),
-      total,
+      data: {
+        data: notifications,
+        totalPages: Math.ceil(total / limit),
+        currentPage: parseInt(page),
+        total,
+      },
     });
   } catch (error) {
     console.error("Get notifications error:", error);
@@ -222,10 +224,25 @@ exports.createOrderStatusNotification = async (
     statusMessages[status] ||
     `Your order ${orderNumber} status has been updated to ${status}.`;
 
+  const getColorForStatus = (status) => {
+    const colorMap = {
+      'Pending': 'warning',
+      'Confirmed': 'info',
+      'Picked Up': 'primary',
+      'Washing': 'primary',
+      'Ironing': 'primary',
+      'Ready for Pickup': 'success',
+      'Out for Delivery': 'warning',
+      'Delivered': 'success',
+    };
+    return colorMap[status] || 'primary';
+  };
+
   return await this.createNotification(userId, {
     title: `Order Status Update - ${status}`,
     message,
-    type: "order_update",
+    type: "order",
+    color: getColorForStatus(status),
     order: orderId,
     priority:
       status === "Ready for Pickup" || status === "Delivered"

@@ -33,6 +33,7 @@ import {
   LocationOn as LocationIcon,
   Payment as PaymentIcon,
   ArrowBack as ArrowBackIcon,
+  CheckCircle as CheckIcon,
 } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -145,6 +146,28 @@ export default function CreateOrder() {
     return { subtotal, tax, total: subtotal + tax };
   };
 
+  const getAvailableTimeSlots = (dateString) => {
+    if (!dateString) return timeSlots;
+    const selectedDate = new Date(dateString);
+    const today = new Date();
+    const isToday = selectedDate.getDate() === today.getDate() &&
+                    selectedDate.getMonth() === today.getMonth() &&
+                    selectedDate.getFullYear() === today.getFullYear();
+
+    if (!isToday) return timeSlots;
+
+    const currentHour = new Date().getHours();
+    const slotStartHours = {
+        "9:00 AM - 11:00 AM": 9,
+        "11:00 AM - 1:00 PM": 11,
+        "2:00 PM - 4:00 PM": 14,
+        "4:00 PM - 6:00 PM": 16,
+        "6:00 PM - 8:00 PM": 18
+    };
+
+    return timeSlots.filter(slot => slotStartHours[slot] > currentHour);
+  };
+
   const handleNext = () => {
     if (validateStep(activeStep)) {
       setActiveStep((prevStep) => prevStep + 1);
@@ -209,13 +232,23 @@ export default function CreateOrder() {
   const handleItemChange = (index, field, value) => {
     setFormData((prev) => ({
       ...prev,
-      items: prev.items.map((item, i) =>
-        i === index ? { ...item, [field]: value } : item
-      ),
+      items: prev.items.map((item, i) => {
+        if (i === index) {
+          const updatedItem = { ...item, [field]: value };
+          // Update unit price if service changes
+          if (field === "service") {
+            const service = serviceTypes.find((s) => s.value === value);
+            updatedItem.price = service ? service.price : item.price;
+          }
+          return updatedItem;
+        }
+        return item;
+      }),
     }));
   };
 
   const addItem = () => {
+    const defaultService = serviceTypes.find(s => s.value === formData.serviceType) || serviceTypes[0];
     setFormData((prev) => ({
       ...prev,
       items: [
@@ -223,9 +256,9 @@ export default function CreateOrder() {
         {
           type: "Shirt",
           quantity: 1,
-          service: prev.serviceType,
+          service: defaultService.value,
           specialInstructions: "",
-          price: 5,
+          price: defaultService.price,
         },
       ],
     }));
@@ -239,7 +272,11 @@ export default function CreateOrder() {
   };
 
   const handleSubmit = async () => {
-    if (!validateStep(activeStep)) return;
+    // Validate all steps before submission
+    if (!validateStep(0) || !validateStep(1)) {
+      toast.error("Please fill in all required fields correctly.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -253,10 +290,28 @@ export default function CreateOrder() {
       navigate(`/order/${response.data.data._id}`);
     } catch (error) {
       console.error("Error creating order:", error);
-      toast.error("Failed to create order. Please try again.");
+      const errorMessage = error.response?.data?.message || "Failed to create order. Please try again.";
+      const detailedErrors = error.response?.data?.errors ? `\n${error.response.data.errors.join('\n')}` : '';
+      toast.error(errorMessage + detailedErrors);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDateChange = (section, value) => {
+    const selectedDate = new Date(value);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+        toast.error("Please select a valid future date.");
+        // Reset to tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        handleNestedInputChange(section, "date", tomorrow.toISOString().split("T")[0]);
+        return;
+    }
+    handleNestedInputChange(section, "date", value);
   };
 
   const renderStepContent = (step) => {
@@ -323,7 +378,7 @@ export default function CreateOrder() {
                   >
                     <Card sx={{ mb: 2, p: 2 }}>
                       <Grid container spacing={2} alignItems="center">
-                        <Grid item xs={12} sm={3}>
+                        <Grid size={{ xs: 12, sm: 3 }}>
                           <FormControl fullWidth size="small">
                             <InputLabel>Type</InputLabel>
                             <Select
@@ -342,7 +397,7 @@ export default function CreateOrder() {
                             </Select>
                           </FormControl>
                         </Grid>
-                        <Grid item xs={12} sm={2}>
+                        <Grid size={{ xs: 12, sm: 2 }}>
                           <TextField
                             fullWidth
                             size="small"
@@ -360,7 +415,7 @@ export default function CreateOrder() {
                             inputProps={{ min: 1 }}
                           />
                         </Grid>
-                        <Grid item xs={12} sm={3}>
+                        <Grid size={{ xs: 12, sm: 3 }}>
                           <FormControl fullWidth size="small">
                             <InputLabel>Service</InputLabel>
                             <Select
@@ -386,7 +441,7 @@ export default function CreateOrder() {
                             </Select>
                           </FormControl>
                         </Grid>
-                        <Grid item xs={12} sm={3}>
+                        <Grid size={{ xs: 12, sm: 3 }}>
                           <TextField
                             fullWidth
                             size="small"
@@ -402,7 +457,7 @@ export default function CreateOrder() {
                             placeholder="e.g., Gentle wash, No bleach"
                           />
                         </Grid>
-                        <Grid item xs={12} sm={1}>
+                        <Grid size={{ xs: 12, sm: 1 }}>
                           <IconButton
                             color="error"
                             onClick={() => removeItem(index)}
@@ -439,15 +494,13 @@ export default function CreateOrder() {
             </Typography>
 
             <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography
                   variant="subtitle1"
                   gutterBottom
                   sx={{ color: "primary.main" }}
                 >
-                  <LocationOn
-                    as
-                    LocationIcon
+                  <LocationIcon
                     sx={{ mr: 1, verticalAlign: "middle" }}
                   />
                   Pickup Details
@@ -472,13 +525,14 @@ export default function CreateOrder() {
                   label="Pickup Date"
                   type="date"
                   value={formData.pickup.date}
-                  onChange={(e) =>
-                    handleNestedInputChange("pickup", "date", e.target.value)
-                  }
                   error={!!errors.pickupDate}
                   helperText={errors.pickupDate}
                   sx={{ mb: 2 }}
                   InputLabelProps={{ shrink: true }}
+                  inputProps={{ min: new Date().toISOString().split('T')[0] }}
+                  onKeyDown={(e) => e.preventDefault()}
+                  onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                  onChange={(e) => handleDateChange("pickup", e.target.value)}
                 />
 
                 <FormControl fullWidth sx={{ mb: 2 }}>
@@ -495,7 +549,7 @@ export default function CreateOrder() {
                     }
                     error={!!errors.pickupTimeSlot}
                   >
-                    {timeSlots.map((slot) => (
+                    {getAvailableTimeSlots(formData.pickup.date).map((slot) => (
                       <MenuItem key={slot} value={slot}>
                         {slot}
                       </MenuItem>
@@ -520,7 +574,7 @@ export default function CreateOrder() {
                 />
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography
                   variant="subtitle1"
                   gutterBottom
@@ -553,13 +607,14 @@ export default function CreateOrder() {
                   label="Delivery Date"
                   type="date"
                   value={formData.delivery.date}
-                  onChange={(e) =>
-                    handleNestedInputChange("delivery", "date", e.target.value)
-                  }
                   error={!!errors.deliveryDate}
                   helperText={errors.deliveryDate}
                   sx={{ mb: 2 }}
                   InputLabelProps={{ shrink: true }}
+                  inputProps={{ min: new Date().toISOString().split('T')[0] }}
+                  onKeyDown={(e) => e.preventDefault()}
+                  onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                  onChange={(e) => handleDateChange("delivery", e.target.value)}
                 />
 
                 <FormControl fullWidth sx={{ mb: 2 }}>
@@ -612,7 +667,7 @@ export default function CreateOrder() {
             </Typography>
 
             <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant="subtitle1" gutterBottom>
                   Cleaning Preferences
                 </Typography>
@@ -733,7 +788,7 @@ export default function CreateOrder() {
                 />
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant="subtitle1" gutterBottom>
                   Order Summary
                 </Typography>

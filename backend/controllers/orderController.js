@@ -1,6 +1,8 @@
 const Order = require("../models/Order");
 const User = require("../models/User");
 const Notification = require("../models/Notification");
+const rewardService = require('../services/rewardService');
+const notificationService = require('../services/notificationService');
 
 // Create new order
 const createOrder = async (req, res) => {
@@ -16,18 +18,44 @@ const createOrder = async (req, res) => {
       priority,
     } = req.body;
 
-    // Calculate pricing
-    const subtotal = items.reduce((sum, item) => sum + item.price, 0);
-    const tax = subtotal * 0.1; // 10% tax
-    const total = subtotal + tax;
+    // Validate items
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Order must contain at least one item",
+      });
+    }
+
+    // Validate schema required fields (prevent 500 mongoose validation errors)
+    if (!serviceType) {
+       return res.status(400).json({ success: false, message: "Service Type is required" });
+    }
+    if (!pickup?.address || !pickup?.date || !pickup?.timeSlot) {
+       return res.status(400).json({ success: false, message: "Complete pickup details are required" });
+    }
+    if (!delivery?.address || !delivery?.date || !delivery?.timeSlot) {
+       return res.status(400).json({ success: false, message: "Complete delivery details are required" });
+    }
+
+    // Calculate pricing - account for quantities and potential discounts
+    const subtotal = items.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
+    const tax = Math.round(subtotal * 0.1 * 100) / 100; // 10% tax, rounded to 2 decimals
+    const orderDiscount = discount || 0;
+    const total = Math.round((subtotal + tax - orderDiscount) * 100) / 100;
 
     // Generate NFC tag
     const nfcTag = `NFC_${Date.now()}_${Math.random()
       .toString(36)
       .substr(2, 9)}`;
 
+    // Generate Order Number and Tracking Code explicitly
+    const orderNumber = "LAU" + Date.now().toString().slice(-8) + Math.random().toString(36).substr(2, 4).toUpperCase();
+    const trackingCode = "TRK" + Date.now().toString().slice(-8) + Math.random().toString(36).substr(2, 4).toUpperCase();
+
     const order = new Order({
       user: req.user.id,
+      orderNumber,
+      trackingCode,
       serviceType,
       items,
       pickup,
@@ -57,8 +85,8 @@ const createOrder = async (req, res) => {
       user: req.user.id,
       title: "Order Created Successfully",
       message: `Your order #${order.orderNumber} has been created and is pending confirmation.`,
-      type: "order_created",
-      orderId: order._id,
+      type: "order",
+      order: order._id,
     });
 
     res.status(201).json({
@@ -67,7 +95,18 @@ const createOrder = async (req, res) => {
       data: order,
     });
   } catch (error) {
-    console.error("Error creating order:", error);
+    console.error("Error creating order (Detailed):", error);
+    
+    // Return validation errors clearly
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        message: "Validation Error",
+        errors: messages
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: "Failed to create order",
@@ -215,18 +254,31 @@ const updateOrderStatus = async (req, res) => {
     // Set actual completion time if status is delivered
     if (status === "Delivered") {
       order.actualCompletion = new Date();
+      
+      // Process rewards for order completion
+      try {
+        await rewardService.processOrderCompletion(order);
+      } catch (error) {
+        console.error('Error processing order completion rewards:', error);
+      }
     }
 
     await order.save();
 
-    // Create notification for status change
-    await Notification.create({
-      user: order.user,
-      title: `Order Status Updated`,
-      message: `Your order #${order.orderNumber} status has been updated to ${status}.`,
-      type: "status_update",
-      orderId: order._id,
-    });
+    // Send notification for status change using notification service
+    try {
+      await notificationService.sendOrderStatusNotification(order.user, order, status);
+    } catch (error) {
+      console.error('Error sending order status notification:', error);
+      // Fallback to old notification method
+      await Notification.create({
+        user: order.user,
+        title: `Order Status Updated`,
+        message: `Your order #${order.orderNumber} status has been updated to ${status}.`,
+        type: "status_update",
+        order: order._id,
+      });
+    }
 
     res.json({
       success: true,
@@ -331,8 +383,8 @@ const cancelOrder = async (req, res) => {
       user: order.user,
       title: "Order Cancelled",
       message: `Your order #${order.orderNumber} has been cancelled.`,
-      type: "order_cancelled",
-      orderId: order._id,
+      type: "status_update",
+      order: order._id,
     });
 
     res.json({
@@ -437,7 +489,7 @@ const scanNfcTag = async (req, res) => {
         title: "Order Status Updated",
         message: `Your order #${order.orderNumber} has been updated to ${newStatus}.`,
         type: "status_update",
-        orderId: order._id,
+        order: order._id,
       });
     }
 
