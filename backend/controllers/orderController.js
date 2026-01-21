@@ -55,8 +55,7 @@ const createOrder = async (req, res) => {
       0,
     );
     const tax = Math.round(subtotal * 0.1 * 100) / 100; // 10% tax, rounded to 2 decimals
-    const orderDiscount = 0;
-    const total = Math.round((subtotal + tax - orderDiscount) * 100) / 100;
+    const total = Math.round((subtotal + tax ) * 100) / 100;
 
     // Generate NFC tag
     const nfcTag = `NFC_${Date.now()}_${Math.random()
