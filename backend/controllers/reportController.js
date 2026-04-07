@@ -1,7 +1,7 @@
 const Order = require("../models/Order");
-const puppeteer = require("puppeteer");
 const path = require("path");
 const fs = require("fs");
+const { launchBrowser } = require("../utils/puppeteerLauncher");
 
 // Helper to format currency
 const formatCurrency = (amount) => {
@@ -28,7 +28,7 @@ exports.generateDailyReport = async (req, res) => {
 
     // Calculate stats
     const totalOrders = orders.length;
-    const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
     const completedOrders = orders.filter(o => o.status === 'Delivered').length;
     
     const statusCounts = orders.reduce((acc, order) => {
@@ -106,7 +106,7 @@ exports.generateDailyReport = async (req, res) => {
                 <td>${order.user ? order.user.name : 'Guest'}</td>
                 <td>${new Date(order.createdAt).toLocaleTimeString()}</td>
                 <td><span class="status">${order.status}</span></td>
-                <td>${formatCurrency(order.totalAmount)}</td>
+                <td>${formatCurrency(order.total || 0)}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -115,10 +115,7 @@ exports.generateDailyReport = async (req, res) => {
       </html>
     `;
 
-    const browser = await puppeteer.launch({ 
-        headless: "new",
-        args: ['--no-sandbox', '--disable-setuid-sandbox'] 
-    });
+    const browser = await launchBrowser();
     const page = await browser.newPage();
     await page.setContent(htmlContent);
     

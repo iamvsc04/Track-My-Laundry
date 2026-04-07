@@ -1,0 +1,92 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.9.2
+2 info using node@v22.13.1
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:D:\Projects\Ongoing Projects\TrackMyLaundry\backend\.npmrc
+5 silly config load:file:C:\Users\saich\.npmrc
+6 silly config load:file:C:\Users\saich\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install" "--package-lock-only" "--ignore-scripts" "--no-audit" "--no-fund" "--cache" ".\\.npm-cache"
+9 verbose logfile logs-max:10 dir:D:\Projects\Ongoing Projects\TrackMyLaundry\backend\.npm-cache\_logs\2026-04-07T18_25_50_046Z-
+10 verbose logfile D:\Projects\Ongoing Projects\TrackMyLaundry\backend\.npm-cache\_logs\2026-04-07T18_25_50_046Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+13 silly idealTree buildDeps
+14 silly fetch manifest @sparticuz/chromium@^143.0.4
+15 silly packumentCache full:https://registry.npmjs.org/@sparticuz%2fchromium cache-miss
+16 http fetch GET 200 https://registry.npmjs.org/@sparticuz%2fchromium 3310ms (cache miss)
+17 silly packumentCache full:https://registry.npmjs.org/@sparticuz%2fchromium set size:undefined disposed:false
+18 silly fetch manifest puppeteer-core@^24.39.0
+19 silly packumentCache full:https://registry.npmjs.org/puppeteer-core cache-miss
+20 http fetch GET 200 https://registry.npmjs.org/puppeteer-core 538ms (cache miss)
+21 silly packumentCache full:https://registry.npmjs.org/puppeteer-core set size:undefined disposed:false
+22 silly placeDep ROOT @sparticuz/chromium@143.0.4 OK for: backend@1.0.0 want: ^143.0.4
+23 silly placeDep ROOT puppeteer-core@24.40.0 REPLACE for: backend@1.0.0 want: ^24.39.0
+24 silly fetch manifest tar-fs@^3.1.1
+25 silly packumentCache full:https://registry.npmjs.org/tar-fs cache-miss
+26 silly fetch manifest @puppeteer/browsers@2.13.0
+27 silly packumentCache full:https://registry.npmjs.org/@puppeteer%2fbrowsers cache-miss
+28 silly fetch manifest chromium-bidi@14.0.0
+29 silly packumentCache full:https://registry.npmjs.org/chromium-bidi cache-miss
+30 silly fetch manifest debug@^4.4.3
+31 silly packumentCache full:https://registry.npmjs.org/debug cache-miss
+32 silly fetch manifest devtools-protocol@0.0.1581282
+33 silly packumentCache full:https://registry.npmjs.org/devtools-protocol cache-miss
+34 silly fetch manifest typed-query-selector@^2.12.1
+35 silly packumentCache full:https://registry.npmjs.org/typed-query-selector cache-miss
+36 silly fetch manifest webdriver-bidi-protocol@0.4.1
+37 silly packumentCache full:https://registry.npmjs.org/webdriver-bidi-protocol cache-miss
+38 http fetch GET 200 https://registry.npmjs.org/tar-fs 406ms (cache miss)
+39 silly packumentCache full:https://registry.npmjs.org/tar-fs set size:undefined disposed:false
+40 silly fetch manifest ws@^8.19.0
+41 silly packumentCache full:https://registry.npmjs.org/ws cache-miss
+42 http fetch GET 200 https://registry.npmjs.org/ws 456ms (cache miss)
+43 silly packumentCache full:https://registry.npmjs.org/ws set size:undefined disposed:false
+44 http fetch GET 200 https://registry.npmjs.org/debug 1009ms (cache miss)
+45 silly packumentCache full:https://registry.npmjs.org/debug set size:undefined disposed:false
+46 http fetch GET 200 https://registry.npmjs.org/webdriver-bidi-protocol 1345ms (cache miss)
+47 silly packumentCache full:https://registry.npmjs.org/webdriver-bidi-protocol set size:undefined disposed:false
+48 http fetch GET 200 https://registry.npmjs.org/typed-query-selector 1359ms (cache miss)
+49 silly packumentCache full:https://registry.npmjs.org/typed-query-selector set size:undefined disposed:false
+50 http fetch GET 200 https://registry.npmjs.org/@puppeteer%2fbrowsers 1365ms (cache miss)
+51 silly packumentCache full:https://registry.npmjs.org/@puppeteer%2fbrowsers set size:undefined disposed:false
+52 http fetch GET 200 https://registry.npmjs.org/chromium-bidi 1385ms (cache miss)
+53 silly packumentCache full:https://registry.npmjs.org/chromium-bidi set size:undefined disposed:false
+54 http fetch GET 200 https://registry.npmjs.org/devtools-protocol 2646ms (cache miss)
+55 silly packumentCache full:https://registry.npmjs.org/devtools-protocol set size:undefined disposed:false
+56 silly placeDep ROOT tar-fs@3.1.2 REPLACE for: @sparticuz/chromium@143.0.4 want: ^3.1.1
+57 silly fetch manifest puppeteer-core@24.19.0
+58 silly packumentCache full:https://registry.npmjs.org/puppeteer-core cache-miss
+59 http cache https://registry.npmjs.org/puppeteer-core 18ms (cache hit)
+60 silly packumentCache full:https://registry.npmjs.org/puppeteer-core set size:1501260 disposed:false
+61 silly placeDep node_modules/puppeteer puppeteer-core@24.19.0 OK for: puppeteer@24.19.0 want: 24.19.0
+62 silly fetch manifest ws@^8.18.3
+63 silly packumentCache full:https://registry.npmjs.org/ws cache-miss
+64 http cache https://registry.npmjs.org/ws 6ms (cache hit)
+65 silly packumentCache full:https://registry.npmjs.org/ws set size:415737 disposed:false
+66 silly fetch manifest bufferutil@^4.0.1
+67 silly packumentCache full:https://registry.npmjs.org/bufferutil cache-miss
+68 http fetch GET 200 https://registry.npmjs.org/bufferutil 362ms (cache miss)
+69 silly packumentCache full:https://registry.npmjs.org/bufferutil set size:undefined disposed:false
+70 silly fetch manifest utf-8-validate@>=5.0.2
+71 silly packumentCache full:https://registry.npmjs.org/utf-8-validate cache-miss
+72 http fetch GET 200 https://registry.npmjs.org/utf-8-validate 309ms (cache miss)
+73 silly packumentCache full:https://registry.npmjs.org/utf-8-validate set size:undefined disposed:false
+74 silly placeDep node_modules/puppeteer-core @puppeteer/browsers@2.13.0 OK for: puppeteer-core@24.40.0 want: 2.13.0
+75 silly placeDep node_modules/puppeteer-core chromium-bidi@14.0.0 OK for: puppeteer-core@24.40.0 want: 14.0.0
+76 silly placeDep ROOT debug@4.4.3 REPLACE for: puppeteer-core@24.40.0 want: ^4.4.3
+77 silly placeDep node_modules/puppeteer-core devtools-protocol@0.0.1581282 OK for: puppeteer-core@24.40.0 want: 0.0.1581282
+78 silly placeDep ROOT typed-query-selector@2.12.1 REPLACE for: puppeteer-core@24.40.0 want: ^2.12.1
+79 silly placeDep ROOT webdriver-bidi-protocol@0.4.1 OK for: puppeteer-core@24.40.0 want: 0.4.1
+80 silly placeDep ROOT ws@8.20.0 OK for: puppeteer-core@24.40.0 want: ^8.19.0
+81 silly fetch manifest semver@^7.7.4
+82 silly packumentCache full:https://registry.npmjs.org/semver cache-miss
+83 http fetch GET 200 https://registry.npmjs.org/semver 261ms (cache miss)
+84 silly packumentCache full:https://registry.npmjs.org/semver set size:undefined disposed:false
+85 silly placeDep ROOT semver@7.7.4 REPLACE for: @puppeteer/browsers@2.13.0 want: ^7.7.4
+86 verbose cwd D:\Projects\Ongoing Projects\TrackMyLaundry\backend
+87 verbose os Windows_NT 10.0.26200
+88 verbose node v22.13.1
+89 verbose npm  v10.9.2
+90 verbose exit 0
+91 info ok

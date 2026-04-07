@@ -1,6 +1,6 @@
-const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs').promises;
+const { launchBrowser } = require("../utils/puppeteerLauncher");
 
 class InvoiceService {
   constructor() {
@@ -12,18 +12,7 @@ class InvoiceService {
     if (this.isInitialized && this.browser) return;
 
     try {
-      this.browser = await puppeteer.launch({
-        headless: 'new',
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu'
-        ]
-      });
+      this.browser = await launchBrowser();
       this.isInitialized = true;
       console.log('Puppeteer initialized successfully');
     } catch (error) {

@@ -1,0 +1,43 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.9.2
+2 info using node@v22.13.1
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:D:\Projects\Ongoing Projects\TrackMyLaundry\backend\.npmrc
+5 silly config load:file:C:\Users\saich\.npmrc
+6 silly config load:file:C:\Users\saich\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install" "--package-lock-only" "--ignore-scripts" "--no-audit" "--no-fund" "--cache" ".\\.npm-cache"
+9 verbose logfile logs-max:10 dir:D:\Projects\Ongoing Projects\TrackMyLaundry\backend\.npm-cache\_logs\2026-04-07T18_25_35_203Z-
+10 verbose logfile D:\Projects\Ongoing Projects\TrackMyLaundry\backend\.npm-cache\_logs\2026-04-07T18_25_35_203Z-debug-0.log
+11 silly logfile done cleaning log files
+12 http fetch GET https://registry.npmjs.org/npm attempt 1 failed with ECONNREFUSED
+13 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+14 silly idealTree buildDeps
+15 silly fetch manifest @sparticuz/chromium@^143.0.4
+16 silly packumentCache full:https://registry.npmjs.org/@sparticuz%2fchromium cache-miss
+17 silly fetch manifest puppeteer-core@^24.39.0
+18 silly packumentCache full:https://registry.npmjs.org/puppeteer-core cache-miss
+19 silly placeDep ROOT @sparticuz/chromium@ OK for: backend@1.0.0 want: ^143.0.4
+20 silly placeDep ROOT puppeteer-core@ REPLACE for: backend@1.0.0 want: ^24.39.0
+21 verbose stack Error: request to https://registry.npmjs.org/@sparticuz%2fchromium failed: cache mode is 'only-if-cached' but no cached response is available.
+21 verbose stack     at cacheFetch (C:\Program Files\nodejs\node_modules\npm\node_modules\make-fetch-happen\lib\cache\index.js:12:13)
+21 verbose stack     at async fetch (C:\Program Files\nodejs\node_modules\npm\node_modules\make-fetch-happen\lib\fetch.js:98:7)
+21 verbose stack     at async RegistryFetcher.packument (C:\Program Files\nodejs\node_modules\npm\node_modules\pacote\lib\registry.js:90:19)
+21 verbose stack     at async RegistryFetcher.manifest (C:\Program Files\nodejs\node_modules\npm\node_modules\pacote\lib\registry.js:128:23)
+21 verbose stack     at async #fetchManifest (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\build-ideal-tree.js:1202:20)
+21 verbose stack     at async #nodeFromEdge (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\build-ideal-tree.js:1040:19)
+21 verbose stack     at async #buildDepStep (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\build-ideal-tree.js:904:11)
+21 verbose stack     at async Arborist.buildIdealTree (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\build-ideal-tree.js:181:7)
+21 verbose stack     at async Arborist.reify (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\reify.js:131:5)
+21 verbose stack     at async Install.exec (C:\Program Files\nodejs\node_modules\npm\lib\commands\install.js:150:5)
+22 error code ENOTCACHED
+23 error request to https://registry.npmjs.org/@sparticuz%2fchromium failed: cache mode is 'only-if-cached' but no cached response is available.
+24 silly unfinished npm timer reify 1775586336068
+25 silly unfinished npm timer reify:loadTrees 1775586336069
+26 verbose cwd D:\Projects\Ongoing Projects\TrackMyLaundry\backend
+27 verbose os Windows_NT 10.0.26200
+28 verbose node v22.13.1
+29 verbose npm  v10.9.2
+30 verbose exit 1
+31 verbose code 1
+32 error A complete log of this run can be found in: D:\Projects\Ongoing Projects\TrackMyLaundry\backend\.npm-cache\_logs\2026-04-07T18_25_35_203Z-debug-0.log
