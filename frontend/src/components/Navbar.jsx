@@ -22,7 +22,8 @@ import {
   ExitToApp as LogoutIcon,
   Dashboard as DashboardIcon,
   LocalLaundryService as LaundryIcon,
-  Add as AddIcon
+  Add as AddIcon,
+  Nfc as NfcIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -56,6 +57,7 @@ const Navbar = () => {
   const menuItems = [
     { label: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { label: 'Create Order', icon: <AddIcon />, path: '/create-order' },
+    { label: 'NFC Setup', icon: <NfcIcon />, path: '/nfc-setup' },
   ];
 
   return (
@@ -92,7 +94,6 @@ const Navbar = () => {
           <Typography
             variant="h6"
             sx={{
-              fontWeight: 800,
               fontWeight: 800,
               color: theme.palette.primary.main,
               display: { xs: 'none', sm: 'block' },

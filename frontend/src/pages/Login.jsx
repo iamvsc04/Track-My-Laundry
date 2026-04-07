@@ -37,6 +37,16 @@ export default function Login() {
       const res = await loginApi(form);
       authLogin(res.data.user, res.data.token);
       setLoading(false);
+      const redirectUrl =
+        sessionStorage.getItem("postLoginRedirectUrl") ||
+        sessionStorage.getItem("pendingNfcDemoUrl");
+
+      if (redirectUrl) {
+        sessionStorage.removeItem("postLoginRedirectUrl");
+        sessionStorage.removeItem("pendingNfcDemoUrl");
+        window.location.href = redirectUrl;
+        return;
+      }
       navigate("/dashboard");
     } catch (err) {
       setLoading(false);
@@ -201,10 +211,18 @@ export default function Login() {
               <Button
                 type="submit"
                 variant="contained"
-                color="primary"
                 fullWidth
                 disabled={loading}
-                sx={{ mt: 2, py: 1.5, fontWeight: "bold", fontSize: "1.1rem" }}
+                sx={{ 
+                  mt: 2, 
+                  py: 1.5, 
+                  fontWeight: "bold", 
+                  fontSize: "1.1rem",
+                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  "&:hover": {
+                    background: "linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)",
+                  },
+                }}
               >
                 {loading ? "Logging in..." : "Login"}
               </Button>

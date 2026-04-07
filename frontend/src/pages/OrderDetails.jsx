@@ -28,9 +28,10 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Alert,
   Stack,
   useMediaQuery,
+  Container,
+  Alert,
 } from "@mui/material";
 import { styled, useTheme } from "@mui/material/styles";
 import {
@@ -52,6 +53,9 @@ import {
   Edit as EditIcon,
   Download as DownloadIcon,
   ArrowBack as ArrowBackIcon,
+  Person as PersonIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
 } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
 import { useParams, useNavigate } from "react-router-dom";
@@ -63,12 +67,15 @@ import {
   formatCurrency, 
   formatDate, 
   formatDateTime,
-  getStatusColor 
+  getStatusColor,
+  scanNfcTag
 } from "../utils/api";
 import { toast } from "react-toastify";
 import MainLayout from "../components/Layout/MainLayout";
 import LaundryLoader from '../components/animations/LaundryLoaders';
 import { animationVariants } from '../hooks/useAnimations';
+import NFCScanner from "../components/NFCScanner";
+import NfcIcon from "@mui/icons-material/Nfc";
 
 const statusSteps = [
   "Pending",
@@ -118,6 +125,9 @@ export default function OrderDetails() {
   const [newStatus, setNewStatus] = useState("");
   const [statusNote, setStatusNote] = useState("");
   const [updating, setUpdating] = useState(false);
+  const [nfcScannerOpen, setNfcScannerOpen] = useState(false);
+  const [nfcOperation, setNfcOperation] = useState("read"); // read or write
+  const isAdmin = user?.role === "admin" || user?.role === "super-admin";
 
   useEffect(() => {
     fetchOrder();
@@ -171,9 +181,46 @@ export default function OrderDetails() {
     }
   };
 
+  const formatOptionalDate = (dateString) => {
+    if (!dateString) return "Not set";
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "Not set";
+    return formatDate(dateString);
+  };
+
+  const formatOptionalDateTime = (dateString) => {
+    if (!dateString) return "Not recorded";
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "Not recorded";
+    return formatDateTime(dateString);
+  };
+
+  const getCompletionLog = () =>
+    order?.statusLogs
+      ?.slice()
+      .reverse()
+      .find((log) => log.status === "Delivered");
+
+  const getNfcTagFromScan = (nfcData) => {
+    if (!nfcData) return "";
+    if (typeof nfcData.content === "object" && nfcData.content?.nfcTag) {
+      return nfcData.content.nfcTag;
+    }
+    if (typeof nfcData.content === "string") {
+      try {
+        const url = new URL(nfcData.content);
+        return url.searchParams.get("nfcTag") || nfcData.content;
+      } catch {
+        // Plain tag value, not a URL.
+      }
+      return nfcData.content;
+    }
+    return nfcData.serialNumber || "";
+  };
+
   if (loading) {
     return (
-      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center" }}>
+      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <LaundryLoader type="washing" size={80} message="Loading order details..." />
       </Box>
     );
@@ -239,7 +286,7 @@ export default function OrderDetails() {
               >
                 Invoice
               </Button>
-              {user?.role === "admin" && (
+              {isAdmin && (
                 <Button
                   variant="contained"
                   startIcon={<EditIcon />}
@@ -271,9 +318,14 @@ export default function OrderDetails() {
                         sx={{ fontWeight: 700, px: 1 }}
                       />
                       <Typography variant="body2" color="text.secondary">
-                        Est. Completion: {formatDate(order.estimatedCompletion)}
+                        Est. Completion: {formatOptionalDate(order.estimatedCompletion)}
                       </Typography>
                     </Stack>
+                    {order.status === "Delivered" && (
+                      <Typography variant="body2" color="success.main" sx={{ mt: 1, fontWeight: 600 }}>
+                        Completed: {formatOptionalDateTime(order.actualCompletion || getCompletionLog()?.timestamp)}
+                      </Typography>
+                    )}
                   </Grid>
                   <Grid size={{ xs: 12, sm: 4 }} sx={{ textAlign: { sm: 'right' } }}>
                     <Typography variant="h4" fontWeight={800} color="primary">
@@ -395,6 +447,38 @@ export default function OrderDetails() {
           {/* Sidebar */}
           <Grid size={{ xs: 12, md: 4 }}>
             <Stack spacing={3}>
+              {/* Customer */}
+              <StyledCard>
+                <CardContent>
+                  <Typography variant="h6" fontWeight={700} gutterBottom>
+                    Customer
+                  </Typography>
+                  <Stack spacing={2} sx={{ mt: 2 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                      <PersonIcon color="primary" fontSize="small" />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" display="block">Name</Typography>
+                        <Typography variant="body2" fontWeight={600}>{order.user?.name || "Customer"}</Typography>
+                      </Box>
+                    </Box>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                      <EmailIcon color="primary" fontSize="small" />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" display="block">Email</Typography>
+                        <Typography variant="body2" fontWeight={600}>{order.user?.email || "Not available"}</Typography>
+                      </Box>
+                    </Box>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                      <PhoneIcon color="primary" fontSize="small" />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" display="block">Mobile</Typography>
+                        <Typography variant="body2" fontWeight={600}>{order.user?.mobile || "Not available"}</Typography>
+                      </Box>
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </StyledCard>
+
               {/* Order Summary */}
               <StyledCard>
                 <CardContent>
@@ -432,6 +516,36 @@ export default function OrderDetails() {
                         {formatCurrency(order.total)}
                       </Typography>
                     </Box>
+                  </Stack>
+                </CardContent>
+              </StyledCard>
+
+              {/* Completion */}
+              <StyledCard>
+                <CardContent>
+                  <Typography variant="h6" fontWeight={700} gutterBottom>
+                    Completion Details
+                  </Typography>
+                  <Stack spacing={2} sx={{ mt: 2 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">Estimated Completion</Typography>
+                      <Typography variant="body2" fontWeight={600}>{formatOptionalDateTime(order.estimatedCompletion)}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">Actual Completion</Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {formatOptionalDateTime(order.actualCompletion || getCompletionLog()?.timestamp)}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">Completion Note</Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {getCompletionLog()?.note || (order.status === "Delivered" ? "Order delivered successfully." : "Order is not completed yet.")}
+                      </Typography>
+                    </Box>
+                    {order.actualCompletion && (
+                      <Chip label="Completed" color="success" size="small" sx={{ alignSelf: "flex-start", fontWeight: 700 }} />
+                    )}
                   </Stack>
                 </CardContent>
               </StyledCard>
@@ -496,7 +610,21 @@ export default function OrderDetails() {
         fullWidth
         PaperProps={{ sx: { borderRadius: 4 } }}
       >
-        <DialogTitle sx={{ fontWeight: 700 }}>Update Order Status</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          Update Order Status
+          <Button 
+            size="small" 
+            startIcon={<NfcIcon />} 
+            onClick={() => {
+               setNfcOperation("write");
+               setNfcScannerOpen(true);
+            }}
+            variant="outlined"
+            color="info"
+          >
+            Assign Tag
+          </Button>
+        </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2 }}>
             <FormControl fullWidth sx={{ mb: 3 }}>
@@ -535,6 +663,37 @@ export default function OrderDetails() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <NFCScanner
+        open={nfcScannerOpen}
+        onClose={() => setNfcScannerOpen(false)}
+        onScanSuccess={async (nfcData) => {
+          try {
+            if (nfcData.type === "write_success" || nfcOperation === "write") {
+               const tagId = getNfcTagFromScan(nfcData);
+               await scanNfcTag({ nfcTag: tagId, operation: "assign", orderId: order._id });
+               toast.success("NFC tag assigned successfully");
+            } else {
+               const tagId = getNfcTagFromScan(nfcData);
+               await scanNfcTag({ nfcTag: tagId, operation: "status_update", location: "Self Service" });
+               toast.success("NFC update recorded");
+            }
+            fetchOrder();
+            setNfcScannerOpen(false);
+          } catch (err) {
+            console.error(err);
+            toast.error("NFC operation failed");
+          }
+        }}
+        orderId={order?.orderNumber}
+        mode={nfcOperation}
+        writeData={{
+          nfcTag: order?.nfcTag,
+          orderId: order?._id,
+          orderNumber: order?.orderNumber,
+          action: "track_order",
+        }}
+      />
     </MainLayout>
   );
 }

@@ -18,6 +18,9 @@ import OrderDetails from "./pages/OrderDetails";
 import Payment from "./pages/Payment";
 import AdminPanel from "./pages/AdminPanel";
 import Orders from "./pages/Orders";
+import NFCDemoOrder from "./pages/NFCDemoOrder";
+import NfcTagLanding from "./pages/NfcTagLanding";
+import NfcTagSetup from "./pages/NfcTagSetup";
 
 // Component to handle route transitions
 const AnimatedRoutes = () => {
@@ -29,6 +32,9 @@ const AnimatedRoutes = () => {
         <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
         <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
                 <Route path="/register" element={<PageTransition><Register /></PageTransition>} />
+        <Route path="/nfc-demo" element={<PageTransition><NFCDemoOrder /></PageTransition>} />
+        <Route path="/nfc-setup" element={<PageTransition><NfcTagSetup /></PageTransition>} />
+        <Route path="/t/:nfcTag" element={<PageTransition><NfcTagLanding /></PageTransition>} />
         
         <Route
           path="/dashboard"

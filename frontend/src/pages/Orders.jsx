@@ -69,12 +69,12 @@ const OrderItem = ({ order, index, onClick }) => {
       elevation={0}
     >
       <Grid container spacing={2} alignItems="center">
-        <Grid item xs={12} sm={2} md={1}>
+        <Grid size={{ xs: 12, sm: 2, md: 1 }}>
            <Avatar sx={{ bgcolor: statusColor.light, color: statusColor.dark, width: 56, height: 56 }}>
              <LaundryIcon />
            </Avatar>
         </Grid>
-        <Grid item xs={12} sm={4} md={5}>
+        <Grid size={{ xs: 12, sm: 4, md: 5 }}>
           <Typography variant="h6" fontWeight={700}>
             {order.orderNumber}
           </Typography>
@@ -82,7 +82,7 @@ const OrderItem = ({ order, index, onClick }) => {
             {formatDate(order.createdAt)} • {order.items?.length || 0} items
           </Typography>
         </Grid>
-        <Grid item xs={6} sm={3} md={3}>
+        <Grid size={{ xs: 6, sm: 3, md: 3 }}>
            <Chip 
               label={order.status}
               sx={{ 
@@ -93,7 +93,7 @@ const OrderItem = ({ order, index, onClick }) => {
               }} 
             />
         </Grid>
-        <Grid item xs={6} sm={3} md={3} sx={{ textAlign: 'right' }}>
+        <Grid size={{ xs: 6, sm: 3, md: 3 }} sx={{ textAlign: 'right' }}>
            <Typography variant="h6" fontWeight={700} color="primary">
               {formatCurrency(order.total)}
            </Typography>
@@ -154,7 +154,7 @@ export default function Orders() {
 
         <Paper sx={{ mb: 4, p: 2, borderRadius: 3 }} elevation={0} variant="outlined">
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
                 placeholder="Search by Order ID..."
@@ -170,7 +170,7 @@ export default function Orders() {
                 size="small"
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Stack direction="row" spacing={2} justifyContent="flex-end">
                  <FormControl size="small" sx={{ minWidth: 150 }}>
                    <InputLabel>Status</InputLabel>

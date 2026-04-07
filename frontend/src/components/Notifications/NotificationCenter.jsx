@@ -53,6 +53,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { styled } from '@mui/material/styles';
 import { formatDistanceToNow } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import {
   getNotifications,
   markNotificationAsRead,
@@ -123,6 +124,7 @@ function TabPanel(props) {
 export default function NotificationCenter({ open, onClose }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState(0);
   const [notifications, setNotifications] = useState([]);
@@ -142,20 +144,32 @@ export default function NotificationCenter({ open, onClose }) {
   // Notification state will be managed by the parent component or context
 
   useEffect(() => {
-    // Fetch notifications from API
-    fetchNotifications();
-  }, []);
+    if (open) {
+      fetchNotifications();
+    }
+  }, [open]);
+
+  const normalizeNotifications = (payload) => {
+    const raw = Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload?.data?.data)
+        ? payload.data.data
+        : Array.isArray(payload)
+          ? payload
+          : [];
+
+    return raw.map((notification) => ({
+      ...notification,
+      id: notification._id || notification.id,
+      timestamp: notification.createdAt || notification.timestamp,
+      color: notification.color || 'primary',
+    }));
+  };
 
   const fetchNotifications = async () => {
     try {
       const response = await getNotifications();
-      let notificationData = response.data;
-      if (notificationData && notificationData.data) {
-        notificationData = notificationData.data;
-      }
-      if (!Array.isArray(notificationData)) {
-        notificationData = [];
-      }
+      const notificationData = normalizeNotifications(response.data);
       setNotifications(notificationData);
       setUnreadCount(notificationData.filter(n => !n.isRead).length);
     } catch (error) {
@@ -185,10 +199,9 @@ export default function NotificationCenter({ open, onClose }) {
       }
     }
     
-    // Navigate to action URL if exists
     if (notification.actionUrl) {
-      // Handle navigation
-      console.log('Navigate to:', notification.actionUrl);
+      onClose();
+      navigate(notification.actionUrl);
     }
   };
 
@@ -235,7 +248,7 @@ export default function NotificationCenter({ open, onClose }) {
       );
     }
     
-    return filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return filtered.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
   };
 
   const getNotificationIcon = (notification) => {
@@ -447,7 +460,9 @@ export default function NotificationCenter({ open, onClose }) {
                               
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="caption" color="text.secondary">
-                                  {formatDistanceToNow(notification.timestamp, { addSuffix: true })}
+                                  {notification.timestamp
+                                    ? formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true })
+                                    : 'Just now'}
                                 </Typography>
                                 
                                 <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -577,7 +592,9 @@ export default function NotificationCenter({ open, onClose }) {
                               
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="caption" color="text.secondary">
-                                  {formatDistanceToNow(notification.timestamp, { addSuffix: true })}
+                                  {notification.timestamp
+                                    ? formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true })
+                                    : 'Just now'}
                                 </Typography>
                                 
                                 <Box sx={{ display: 'flex', gap: 0.5 }}>

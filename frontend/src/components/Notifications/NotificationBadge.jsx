@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   IconButton,
   Badge,
@@ -12,6 +12,7 @@ import {
 import { motion } from 'framer-motion';
 import { styled } from '@mui/material/styles';
 import NotificationCenter from './NotificationCenter';
+import { getUnreadNotificationCountCached } from '../../utils/api';
 
 const StyledBadge = styled(Badge)(({ theme }) => ({
   '& .MuiBadge-badge': {
@@ -52,7 +53,7 @@ const AnimatedIconButton = styled(motion.div)(({ theme }) => ({
 }));
 
 export default function NotificationBadge({ 
-  unreadCount = 0,
+  unreadCount,
   size = 'medium',
   showTooltip = true,
   color = 'default',
@@ -63,6 +64,58 @@ export default function NotificationBadge({
 }) {
   const theme = useTheme();
   const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
+  const [fetchedUnreadCount, setFetchedUnreadCount] = useState(0);
+  const displayUnreadCount = unreadCount ?? fetchedUnreadCount;
+  const intervalIdRef = useRef(null);
+  const retryTimeoutRef = useRef(null);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await getUnreadNotificationCountCached();
+      setFetchedUnreadCount(response.data.unreadCount || 0);
+    } catch (error) {
+      const status = error.response?.status;
+      if (status === 429) {
+        // Back off when we hit rate limiting (avoid spamming more 429s).
+        const retryAfterSeconds = Number.parseInt(
+          error.response?.headers?.["retry-after"] ||
+            error.response?.data?.retryAfter ||
+            "60",
+          10
+        );
+        if (intervalIdRef.current) {
+          window.clearInterval(intervalIdRef.current);
+          intervalIdRef.current = null;
+        }
+        if (retryTimeoutRef.current) {
+          window.clearTimeout(retryTimeoutRef.current);
+        }
+        retryTimeoutRef.current = window.setTimeout(() => {
+          fetchUnreadCount();
+          intervalIdRef.current = window.setInterval(fetchUnreadCount, 60000);
+        }, Math.max(5, retryAfterSeconds) * 1000);
+        return;
+      }
+
+      console.error('Error fetching unread notification count:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (unreadCount !== undefined) return;
+    fetchUnreadCount();
+    intervalIdRef.current = window.setInterval(fetchUnreadCount, 60000);
+    return () => {
+      if (intervalIdRef.current) {
+        window.clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
+      }
+      if (retryTimeoutRef.current) {
+        window.clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+    };
+  }, [unreadCount]);
 
   const getIconSize = () => {
     switch (size) {
@@ -119,14 +172,14 @@ export default function NotificationBadge({
 
   const BadgeComponent = (
     <StyledBadge
-      badgeContent={unreadCount}
+      badgeContent={displayUnreadCount}
       color="error"
       variant={variant}
       max={99}
-      invisible={unreadCount === 0}
+      invisible={displayUnreadCount === 0}
       overlap="circular"
     >
-      {unreadCount > 0 ? (
+      {displayUnreadCount > 0 ? (
         <NotificationsIcon 
           sx={{ 
             fontSize: getIconSize(),
@@ -172,8 +225,8 @@ export default function NotificationBadge({
       {showTooltip ? (
         <Tooltip 
           title={
-            unreadCount > 0 
-              ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
+            displayUnreadCount > 0 
+              ? `${displayUnreadCount} unread notification${displayUnreadCount > 1 ? 's' : ''}`
               : 'No new notifications'
           }
           arrow
@@ -187,7 +240,12 @@ export default function NotificationBadge({
 
       <NotificationCenter
         open={notificationCenterOpen}
-        onClose={() => setNotificationCenterOpen(false)}
+        onClose={() => {
+          setNotificationCenterOpen(false);
+          if (unreadCount === undefined) {
+            fetchUnreadCount();
+          }
+        }}
       />
     </>
   );

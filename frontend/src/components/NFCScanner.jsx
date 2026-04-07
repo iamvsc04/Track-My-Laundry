@@ -31,8 +31,16 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
 
-const NFCScanner = ({ open, onClose, onScanSuccess, orderId }) => {
+const NFCScanner = ({
+  open,
+  onClose,
+  onScanSuccess,
+  orderId,
+  mode = "read",
+  writeData,
+}) => {
   const [isScanning, setIsScanning] = useState(false);
+  const [isWriting, setIsWriting] = useState(false);
   const [nfcSupported, setNfcSupported] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [error, setError] = useState(null);
@@ -51,7 +59,7 @@ const NFCScanner = ({ open, onClose, onScanSuccess, orderId }) => {
       setError(null);
     } else {
       setNfcSupported(false);
-      setError("NFC is not supported on this device or browser");
+      setError("NFC is not supported on this device/browser. Use Chrome on Android.");
     }
   };
 
@@ -67,35 +75,56 @@ const NFCScanner = ({ open, onClose, onScanSuccess, orderId }) => {
       setError(null);
       setScanResult(null);
 
-      // Create abort controller for scanning
       abortControllerRef.current = new AbortController();
-
-      // Request NFC permission
       const ndef = new NDEFReader();
 
-      // Listen for NFC tags
-      await ndef.scan({
-        signal: abortControllerRef.current.signal,
-        recordType: "text",
-        mediaType: "application/json",
-      });
+      await ndef.scan({ signal: abortControllerRef.current.signal });
 
-      // Handle NFC reading
-      ndef.addEventListener("reading", (event) => {
+      ndef.onreading = (event) => {
         handleNFCReading(event);
-      });
+      };
 
-      // Handle NFC reading errors
-      ndef.addEventListener("readingerror", (event) => {
-        handleNFCError(event);
-      });
+      ndef.onreadingerror = (event) => {
+        handleNFCError(new Error("Cannot read data from NFC tag. Try another one."));
+      };
 
-      // Handle NFC reading end
-      ndef.addEventListener("readingerror", (event) => {
-        handleNFCError(event);
-      });
     } catch (error) {
       handleNFCError(error);
+    }
+  };
+
+  // Write to NFC tag
+  const startWriting = async (data) => {
+    if (!nfcSupported) {
+      setError("NFC is not supported on this device");
+      return;
+    }
+
+    try {
+      setIsWriting(true);
+      setError(null);
+
+      const ndef = new NDEFReader();
+      // Writing requires a user gesture, which this call is part of
+      if (typeof data === "object" && data?.url) {
+        await ndef.write({
+          records: [{ recordType: "url", data: data.url }],
+        });
+      } else {
+        await ndef.write(typeof data === "string" ? data : JSON.stringify(data));
+      }
+      
+      toast.success("NFC tag written successfully!");
+      if (onScanSuccess) {
+        onScanSuccess({ type: "write_success", content: data, timestamp: new Date() });
+      }
+      setTimeout(() => handleClose(), 1500);
+    } catch (error) {
+      console.error("Write Error:", error);
+      setError(error.message || "Failed to write to NFC tag");
+      toast.error("NFC writing failed");
+    } finally {
+      setIsWriting(false);
     }
   };
 
@@ -114,48 +143,48 @@ const NFCScanner = ({ open, onClose, onScanSuccess, orderId }) => {
       const decoder = new TextDecoder();
       let nfcData = null;
 
-      // Process different record types
       for (const record of event.message.records) {
-        if (record.recordType === "text") {
-          const textDecoder = new TextDecoder(record.encoding || "utf-8");
-          const text = textDecoder.decode(record.data);
-          nfcData = { type: "text", content: text, timestamp: new Date() };
-        } else if (record.recordType === "url") {
-          const url = decoder.decode(record.data);
-          nfcData = { type: "url", content: url, timestamp: new Date() };
-        } else if (record.mediaType === "application/json") {
-          const jsonData = JSON.parse(decoder.decode(record.data));
-          nfcData = { type: "json", content: jsonData, timestamp: new Date() };
+        const content = decoder.decode(record.data);
+        let parsedContent = content;
+        let type = record.recordType;
+
+        if (record.mediaType === "application/json" || content.startsWith('{')) {
+          try {
+            parsedContent = JSON.parse(content);
+            type = "json";
+          } catch (e) {
+            // Not JSON, keep as text
+          }
         }
+        
+        nfcData = { type, content: parsedContent, timestamp: new Date(), serialNumber: event.serialNumber };
       }
 
       if (nfcData) {
         setScanResult(nfcData);
-        setScanHistory((prev) => [nfcData, ...prev.slice(0, 9)]); // Keep last 10 scans
+        setScanHistory((prev) => [nfcData, ...prev.slice(0, 9)]);
 
-        // Auto-close after successful scan if callback provided
         if (onScanSuccess) {
           onScanSuccess(nfcData);
-          setTimeout(() => onClose(), 2000);
+          if (mode === "read") setTimeout(() => handleClose(), 2000);
         }
 
         stopScanning();
-        toast.success("NFC tag scanned successfully!");
+        toast.success("NFC tag scanned!");
       }
     } catch (error) {
       handleNFCError(error);
     }
   };
 
-  // Handle NFC errors
   const handleNFCError = (error) => {
     console.error("NFC Error:", error);
-    setError(error.message || "Failed to read NFC tag");
+    setError(error.message || "Failed to interact with NFC tag");
     setIsScanning(false);
-    toast.error("NFC scanning failed");
+    setIsWriting(false);
+    toast.error("NFC operation failed");
   };
 
-  // Handle dialog close
   const handleClose = () => {
     stopScanning();
     setScanResult(null);
@@ -163,25 +192,19 @@ const NFCScanner = ({ open, onClose, onScanSuccess, orderId }) => {
     onClose();
   };
 
-  // Format NFC data for display
   const formatNFCData = (data) => {
-    if (data.type === "json") {
+    if (data.type === "json" || typeof data.content === 'object') {
       return JSON.stringify(data.content, null, 2);
     }
     return data.content;
   };
 
-  // Get NFC data type color
   const getDataTypeColor = (type) => {
     switch (type) {
-      case "text":
-        return "primary";
-      case "url":
-        return "success";
-      case "json":
-        return "warning";
-      default:
-        return "default";
+      case "text": return "primary";
+      case "url": return "success";
+      case "json": return "warning";
+      default: return "default";
     }
   };
 
@@ -189,27 +212,22 @@ const NFCScanner = ({ open, onClose, onScanSuccess, orderId }) => {
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="md"
+      maxWidth="sm"
       fullWidth
       PaperProps={{
         component: motion.div,
         initial: { opacity: 0, y: 20 },
         animate: { opacity: 1, y: 0 },
         exit: { opacity: 0, y: -20 },
-        transition: { duration: 0.3 },
       }}
     >
       <DialogTitle>
         <Box display="flex" alignItems="center" justifyContent="space-between">
           <Box display="flex" alignItems="center" gap={1}>
             <NfcIcon color="primary" />
-            <Typography variant="h6">NFC Scanner</Typography>
+            <Typography variant="h6">NFC {mode === "write" ? "Writer" : "Scanner"}</Typography>
             {orderId && (
-              <Chip
-                label={`Order: ${orderId}`}
-                size="small"
-                color="secondary"
-              />
+              <Chip label={`Order: ${orderId}`} size="small" color="secondary" />
             )}
           </Box>
           <IconButton onClick={handleClose} size="small">
@@ -222,149 +240,90 @@ const NFCScanner = ({ open, onClose, onScanSuccess, orderId }) => {
         <Box mb={3}>
           {!nfcSupported ? (
             <Alert severity="error" icon={<ErrorIcon />}>
-              <Typography variant="body2">
-                NFC is not supported on this device or browser. Please use a
-                device with NFC capabilities and a compatible browser.
-              </Typography>
+              NFC is not supported. Please use Chrome on Android and ensure NFC is enabled in settings.
             </Alert>
           ) : (
             <Alert severity="info" icon={<InfoIcon />}>
-              <Typography variant="body2">
-                Hold your device near an NFC tag to scan it. Make sure NFC is
-                enabled in your device settings.
-              </Typography>
+              {mode === "write" 
+                ? "Tap 'Confirm & Write' then hold the NFC sticker to your phone's back."
+                : "Hold your device near the laundry NFC sticker to scan."}
             </Alert>
           )}
         </Box>
 
-        {/* NFC Control Buttons */}
-        <Box display="flex" gap={2} mb={3} justifyContent="center">
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<NfcIcon />}
-            onClick={startScanning}
-            disabled={!nfcSupported || isScanning}
-            size="large"
-          >
-            {isScanning ? "Scanning..." : "Start Scanning"}
-          </Button>
-
-          {isScanning && (
-            <Button
-              variant="outlined"
-              color="secondary"
-              onClick={stopScanning}
-              startIcon={<CloseIcon />}
-            >
-              Stop Scanning
-            </Button>
-          )}
-
-          <Button
-            variant="outlined"
-            onClick={checkNFCSupport}
-            startIcon={<RefreshIcon />}
-          >
-            Refresh
-          </Button>
-        </Box>
-
-        {/* Loading State */}
-        {isScanning && (
-          <Box
-            display="flex"
-            flexDirection="column"
-            alignItems="center"
-            gap={2}
-            my={3}
-          >
-            <CircularProgress size={60} />
-            <Typography variant="body2" color="textSecondary">
-              Hold device near NFC tag...
-            </Typography>
-          </Box>
-        )}
-
-        {/* Error Display */}
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            <Typography variant="body2">{error}</Typography>
+        {mode === "write" && writeData?.url && (
+          <Alert severity="success" sx={{ mb: 3 }}>
+            This sticker will open {writeData.url}
           </Alert>
         )}
 
-        {/* Scan Result */}
+        <Box display="flex" gap={2} mb={3} justifyContent="center">
+          {mode === "read" ? (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<NfcIcon />}
+              onClick={startScanning}
+              disabled={!nfcSupported || isScanning}
+              size="large"
+            >
+              {isScanning ? "Scanning..." : "Start Scan"}
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<CheckIcon />}
+              onClick={() =>
+                startWriting(
+                  writeData || {
+                    orderId,
+                    timestamp: new Date().toISOString(),
+                  }
+                )
+              }
+              disabled={!nfcSupported || isWriting}
+              size="large"
+            >
+              {isWriting ? "Writing..." : "Confirm & Write Tag"}
+            </Button>
+          )}
+
+          {isScanning && (
+            <Button variant="outlined" color="secondary" onClick={stopScanning}>
+              Stop
+            </Button>
+          )}
+        </Box>
+
+        {isScanning && (
+          <Box display="flex" flexDirection="column" alignItems="center" gap={2} my={3}>
+            <CircularProgress size={60} />
+            <Typography variant="body2" color="textSecondary">Hold device near tag...</Typography>
+          </Box>
+        )}
+
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
         {scanResult && (
           <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
             <Box display="flex" alignItems="center" gap={1} mb={2}>
               <CheckIcon color="success" />
-              <Typography variant="h6">Scan Result</Typography>
-              <Chip
-                label={scanResult.type}
-                color={getDataTypeColor(scanResult.type)}
-                size="small"
-              />
+              <Typography variant="h6">Scan Success</Typography>
+              <Chip label={scanResult.type} color={getDataTypeColor(scanResult.type)} size="small" />
             </Box>
-
-            <Typography variant="body2" color="textSecondary" mb={1}>
-              Scanned at: {scanResult.timestamp.toLocaleString()}
-            </Typography>
-
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 2,
-                backgroundColor: "grey.50",
-                fontFamily: "monospace",
-                fontSize: "0.875rem",
-                maxHeight: "200px",
-                overflow: "auto",
-              }}
-            >
+            {scanResult.serialNumber && (
+              <Typography variant="caption" display="block" color="textSecondary">Tag ID: {scanResult.serialNumber}</Typography>
+            )}
+            <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: "grey.50", fontFamily: "monospace", fontSize: "0.8rem" }}>
               {formatNFCData(scanResult)}
             </Paper>
           </Paper>
         )}
-
-        {/* Scan History */}
-        {scanHistory.length > 0 && (
-          <Box>
-            <Typography variant="h6" mb={2}>
-              Recent Scans
-            </Typography>
-            <List dense>
-              {scanHistory.map((scan, index) => (
-                <ListItem key={index} divider>
-                  <ListItemIcon>
-                    <NfcIcon color="primary" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Typography variant="body2">
-                          {scan.content.substring(0, 50)}
-                          {scan.content.length > 50 ? "..." : ""}
-                        </Typography>
-                        <Chip
-                          label={scan.type}
-                          size="small"
-                          color={getDataTypeColor(scan.type)}
-                        />
-                      </Box>
-                    }
-                    secondary={scan.timestamp.toLocaleString()}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          </Box>
-        )}
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={handleClose} color="primary">
-          Close
-        </Button>
+        <Button onClick={handleClose}>Cancel</Button>
       </DialogActions>
     </Dialog>
   );

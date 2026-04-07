@@ -721,27 +721,31 @@ export default function Profile() {
               <Typography variant="body1" color="text.secondary" gutterBottom>
                 {user?.email || "user@example.com"}
               </Typography>
-              <Box sx={{ display: "flex", justifyContent: "center", gap: 1, mt: 2 }}>
-                <Chip
-                  icon={<VerifiedIcon />}
-                  label="Verified"
-                  color="success"
-                  variant="outlined"
-                  size="small"
-                />
-                <Chip
-                  icon={<StarIcon />}
-                  label="Premium"
-                  color="primary"
-                  variant="outlined"
-                  size="small"
-                />
-              </Box>
-              <Box sx={{ mt: 3 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Member since {new Date(user?.createdAt || Date.now()).getFullYear()}
-                </Typography>
-              </Box>
+              {user?.role === "user" && (
+                <Box sx={{ display: "flex", justifyContent: "center", gap: 1, mt: 2 }}>
+                  <Chip
+                    icon={<VerifiedIcon />}
+                    label="Verified"
+                    color="success"
+                    variant="outlined"
+                    size="small"
+                  />
+                  <Chip
+                    icon={<StarIcon />}
+                    label="Premium"
+                    color="primary"
+                    variant="outlined"
+                    size="small"
+                  />
+                </Box>
+              )}
+              {user?.role === "user" && (
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Member since {new Date(user?.createdAt || Date.now()).getFullYear()}
+                  </Typography>
+                </Box>
+              )}
             </CardContent>
           </StyledCard>
         </Grid>
@@ -846,134 +850,142 @@ export default function Profile() {
                     margin="normal"
                   />
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    label="Address"
-                    value={profileForm.address}
-                    onChange={(e) =>
-                      handleProfileInputChange("address", e.target.value)
-                    }
-                    disabled={!editing}
-                    margin="normal"
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <TextField
-                    fullWidth
-                    label="City"
-                    value={profileForm.city}
-                    onChange={(e) =>
-                      handleProfileInputChange("city", e.target.value)
-                    }
-                    disabled={!editing}
-                    margin="normal"
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <TextField
-                    fullWidth
-                    label="State"
-                    value={profileForm.state}
-                    onChange={(e) =>
-                      handleProfileInputChange("state", e.target.value)
-                    }
-                    disabled={!editing}
-                    margin="normal"
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <TextField
-                    fullWidth
-                    label="Pincode"
-                    value={profileForm.pincode}
-                    onChange={(e) =>
-                      handleProfileInputChange("pincode", e.target.value)
-                    }
-                    disabled={!editing}
-                    margin="normal"
-                  />
-                </Grid>
-              </Grid>
-
-              <Divider sx={{ my: 3 }} />
-
-              <Typography variant="h6" gutterBottom>
-                Laundry Preferences
-              </Typography>
-
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <FormControl fullWidth margin="normal">
-                    <InputLabel>Detergent Type</InputLabel>
-                    <Select
-                      value={profileForm.detergentType}
-                      onChange={(e) =>
-                        handleProfileInputChange(
-                          "detergentType",
-                          e.target.value
-                        )
-                      }
-                      disabled={!editing}
-                      label="Detergent Type"
-                    >
-                      <MenuItem value="Regular">Regular</MenuItem>
-                      <MenuItem value="Mild">Mild</MenuItem>
-                      <MenuItem value="Fragrance Free">Fragrance Free</MenuItem>
-                      <MenuItem value="Eco-Friendly">Eco-Friendly</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <FormControl fullWidth margin="normal">
-                    <InputLabel>Starch Level</InputLabel>
-                    <Select
-                      value={profileForm.starchLevel}
-                      onChange={(e) =>
-                        handleProfileInputChange("starchLevel", e.target.value)
-                      }
-                      disabled={!editing}
-                      label="Starch Level"
-                    >
-                      <MenuItem value="None">None</MenuItem>
-                      <MenuItem value="Light">Light</MenuItem>
-                      <MenuItem value="Medium">Medium</MenuItem>
-                      <MenuItem value="Heavy">Heavy</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={profileForm.fabricSoftener}
+                {user?.role === "user" && (
+                  <>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        fullWidth
+                        label="Address"
+                        value={profileForm.address}
                         onChange={(e) =>
-                          handleProfileInputChange(
-                            "fabricSoftener",
-                            e.target.checked
-                          )
+                          handleProfileInputChange("address", e.target.value)
                         }
                         disabled={!editing}
+                        margin="normal"
                       />
-                    }
-                    label="Fabric Softener"
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={profileForm.ironing}
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <TextField
+                        fullWidth
+                        label="City"
+                        value={profileForm.city}
                         onChange={(e) =>
-                          handleProfileInputChange("ironing", e.target.checked)
+                          handleProfileInputChange("city", e.target.value)
                         }
                         disabled={!editing}
+                        margin="normal"
                       />
-                    }
-                    label="Ironing"
-                  />
-                </Grid>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <TextField
+                        fullWidth
+                        label="State"
+                        value={profileForm.state}
+                        onChange={(e) =>
+                          handleProfileInputChange("state", e.target.value)
+                        }
+                        disabled={!editing}
+                        margin="normal"
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <TextField
+                        fullWidth
+                        label="Pincode"
+                        value={profileForm.pincode}
+                        onChange={(e) =>
+                          handleProfileInputChange("pincode", e.target.value)
+                        }
+                        disabled={!editing}
+                        margin="normal"
+                      />
+                    </Grid>
+                  </>
+                )}
               </Grid>
+
+              {user?.role === "user" && (
+                <>
+                  <Divider sx={{ my: 3 }} />
+
+                  <Typography variant="h6" gutterBottom>
+                    Laundry Preferences
+                  </Typography>
+
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <FormControl fullWidth margin="normal">
+                        <InputLabel>Detergent Type</InputLabel>
+                        <Select
+                          value={profileForm.detergentType}
+                          onChange={(e) =>
+                            handleProfileInputChange(
+                              "detergentType",
+                              e.target.value
+                            )
+                          }
+                          disabled={!editing}
+                          label="Detergent Type"
+                        >
+                          <MenuItem value="Regular">Regular</MenuItem>
+                          <MenuItem value="Mild">Mild</MenuItem>
+                          <MenuItem value="Fragrance Free">Fragrance Free</MenuItem>
+                          <MenuItem value="Eco-Friendly">Eco-Friendly</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <FormControl fullWidth margin="normal">
+                        <InputLabel>Starch Level</InputLabel>
+                        <Select
+                          value={profileForm.starchLevel}
+                          onChange={(e) =>
+                            handleProfileInputChange("starchLevel", e.target.value)
+                          }
+                          disabled={!editing}
+                          label="Starch Level"
+                        >
+                          <MenuItem value="None">None</MenuItem>
+                          <MenuItem value="Light">Light</MenuItem>
+                          <MenuItem value="Medium">Medium</MenuItem>
+                          <MenuItem value="Heavy">Heavy</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={profileForm.fabricSoftener}
+                            onChange={(e) =>
+                              handleProfileInputChange(
+                                "fabricSoftener",
+                                e.target.checked
+                              )
+                            }
+                            disabled={!editing}
+                          />
+                        }
+                        label="Fabric Softener"
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={profileForm.ironing}
+                            onChange={(e) =>
+                              handleProfileInputChange("ironing", e.target.checked)
+                            }
+                            disabled={!editing}
+                          />
+                        }
+                        label="Ironing"
+                      />
+                    </Grid>
+                  </Grid>
+                </>
+              )}
 
               <Box sx={{ mt: 3, display: "flex", gap: 2 }}>
                 <Button
@@ -996,96 +1008,98 @@ export default function Profile() {
         </Grid>
         
         {/* Address Management */}
-        <Grid size={{ xs: 12 }}>
-          <StyledCard>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-                <Typography variant="h5" sx={{ fontWeight: 600 }}>Delivery Addresses</Typography>
-                <Button
-                  startIcon={<AddIcon />}
-                  variant="contained"
-                  onClick={() => setAddressDialogOpen(true)}
-                  sx={{
-                    background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-                    "&:hover": {
-                      background: "linear-gradient(135deg, #3d8bfe 0%, #0dd8e8 100%)",
-                    },
-                  }}
-                >
-                  Add Address
-                </Button>
-              </Box>
-              
-              <Grid container spacing={2}>
-                {addresses.map((address) => (
-                  <Grid item xs={12} md={6} key={address.id}>
-                    <Card 
-                      variant="outlined" 
-                      sx={{ 
-                        background: "rgba(255,255,255,0.08)",
-                        border: address.isDefault 
-                          ? "2px solid #4facfe" 
-                          : "1px solid rgba(255,255,255,0.1)",
-                        borderRadius: 2,
-                        "&:hover": {
-                          background: "rgba(255,255,255,0.12)",
-                        },
-                      }}
-                    >
-                      <CardContent>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                            <Chip
-                              icon={address.type === "Home" ? <HomeIcon /> : <BusinessIcon />}
-                              label={address.type}
-                              size="small"
-                              color={address.isDefault ? "primary" : "default"}
-                              variant={address.isDefault ? "filled" : "outlined"}
-                            />
-                            {address.isDefault && (
+        {user?.role === "user" && (
+          <Grid size={{ xs: 12 }}>
+            <StyledCard>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 600 }}>Delivery Addresses</Typography>
+                  <Button
+                    startIcon={<AddIcon />}
+                    variant="contained"
+                    onClick={() => setAddressDialogOpen(true)}
+                    sx={{
+                      background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+                      "&:hover": {
+                        background: "linear-gradient(135deg, #3d8bfe 0%, #0dd8e8 100%)",
+                      },
+                    }}
+                  >
+                    Add Address
+                  </Button>
+                </Box>
+                
+                <Grid container spacing={2}>
+                  {addresses.map((address) => (
+                    <Grid size={{ xs: 12, md: 6 }} key={address.id}>
+                      <Card 
+                        variant="outlined" 
+                        sx={{ 
+                          background: "rgba(255,255,255,0.08)",
+                          border: address.isDefault 
+                            ? "2px solid #4facfe" 
+                            : "1px solid rgba(255,255,255,0.1)",
+                          borderRadius: 2,
+                          "&:hover": {
+                            background: "rgba(255,255,255,0.12)",
+                          },
+                        }}
+                      >
+                        <CardContent>
+                          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                               <Chip
-                                label="Default"
+                                icon={address.type === "Home" ? <HomeIcon /> : <BusinessIcon />}
+                                label={address.type}
                                 size="small"
-                                color="success"
-                                variant="outlined"
+                                color={address.isDefault ? "primary" : "default"}
+                                variant={address.isDefault ? "filled" : "outlined"}
                               />
-                            )}
+                              {address.isDefault && (
+                                <Chip
+                                  label="Default"
+                                  size="small"
+                                  color="success"
+                                  variant="outlined"
+                                />
+                              )}
+                            </Box>
+                            <Box>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDeleteAddress(address.id)}
+                                sx={{ color: "error.main" }}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Box>
                           </Box>
-                          <Box>
-                            <IconButton
+                          
+                          <Typography variant="body1" sx={{ fontWeight: 500, mb: 0.5 }}>
+                            {address.address}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {address.city}, {address.state} - {address.pincode}
+                          </Typography>
+                          
+                          {!address.isDefault && (
+                            <Button
                               size="small"
-                              onClick={() => handleDeleteAddress(address.id)}
-                              sx={{ color: "error.main" }}
+                              onClick={() => handleSetDefaultAddress(address.id)}
+                              sx={{ mt: 1 }}
                             >
-                              <DeleteIcon />
-                            </IconButton>
-                          </Box>
-                        </Box>
-                        
-                        <Typography variant="body1" sx={{ fontWeight: 500, mb: 0.5 }}>
-                          {address.address}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {address.city}, {address.state} - {address.pincode}
-                        </Typography>
-                        
-                        {!address.isDefault && (
-                          <Button
-                            size="small"
-                            onClick={() => handleSetDefaultAddress(address.id)}
-                            sx={{ mt: 1 }}
-                          >
-                            Set as Default
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            </CardContent>
-          </StyledCard>
-        </Grid>
+                              Set as Default
+                            </Button>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              </CardContent>
+            </StyledCard>
+          </Grid>
+        )}
       </Grid>
     </motion.div>
   );
@@ -1548,7 +1562,7 @@ export default function Profile() {
           </Box>
 
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <FormControl fullWidth margin="normal">
                 <InputLabel>Theme</InputLabel>
                 <Select
@@ -1562,7 +1576,7 @@ export default function Profile() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <FormControlLabel
                 control={
                   <Switch
@@ -1575,7 +1589,7 @@ export default function Profile() {
                 label="Auto Dark Mode"
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <FormControlLabel
                 control={
                   <Switch

@@ -1,7 +1,17 @@
 import axios from "axios";
 
+export const APP_BASE_URL =
+  import.meta.env.VITE_APP_BASE_URL || window.location.origin;
+
+const configuredApiUrl = import.meta.env.VITE_API_URL;
+const isLocalFrontend = ["localhost", "127.0.0.1"].includes(
+  window.location.hostname
+);
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  isLocalFrontend &&
+  configuredApiUrl?.startsWith("https://track-my-laundry.vercel.app")
+    ? "http://localhost:5000/api"
+    : configuredApiUrl || "http://localhost:5000/api";
 
 // Create axios instance with base configuration
 const api = axios.create({
@@ -46,6 +56,9 @@ export const getProfile = () => api.get("/auth/profile");
 export const updateProfile = (userData) => api.put("/auth/profile", userData);
 export const changePassword = (passwordData) =>
   api.put("/auth/change-password", passwordData);
+export const createAdmin = (adminData) => api.post("/auth/create-admin", adminData);
+export const getAllStaff = () => api.get("/auth/staff"); // We'll need a way to list staff/admins
+export const getCustomers = () => api.get("/auth/customers");
 
 // Email verification link helpers (no OTP)
 export const sendEmailVerificationLink = (email) =>
@@ -61,6 +74,8 @@ export const resendVerificationEmail = (email) =>
 export const createOrder = (orderData) => api.post("/orders", orderData);
 export const getOrders = (params = {}) => api.get("/orders", { params });
 export const getOrderById = (orderId) => api.get(`/orders/${orderId}`);
+export const getOrderByNfcTag = (nfcTag) =>
+  api.get(`/orders/by-nfc/${encodeURIComponent(nfcTag)}`);
 export const updateOrderStatus = (orderId, statusData) =>
   api.patch(`/orders/${orderId}/status`, statusData);
 export const updateOrderPriority = (orderId, priorityData) =>
@@ -90,6 +105,26 @@ export const markAllNotificationsAsRead = () =>
   api.patch("/notifications/read-all");
 export const getUnreadNotificationCount = () =>
   api.get("/notifications/unread-count");
+
+// Lightweight in-memory dedupe for the unread count so multiple components
+// don't hammer the endpoint at the same time.
+let unreadCountCache = {
+  ts: 0,
+  promise: null,
+};
+
+export const getUnreadNotificationCountCached = (ttlMs = 10000) => {
+  const now = Date.now();
+  if (unreadCountCache.promise && now - unreadCountCache.ts < ttlMs) {
+    return unreadCountCache.promise;
+  }
+
+  unreadCountCache.ts = now;
+  unreadCountCache.promise = getUnreadNotificationCount().finally(() => {
+    // Keep the promise for the TTL window; callers will refresh after TTL.
+  });
+  return unreadCountCache.promise;
+};
 export const deleteNotification = (notificationId) =>
   api.delete(`/notifications/${notificationId}`);
 export const updateNotificationPreferences = (preferences) =>
@@ -171,11 +206,17 @@ export const getStatusColor = (status) => {
     Washing: "primary",
     Ironing: "secondary",
     "Ready for Pickup": "success",
-    "Out for Delivery": "warning",
+    "Out for Delivery": "info",
     Delivered: "success",
     Cancelled: "error",
   };
   return statusColors[status] || "default";
+};
+
+export const getStatusHex = (status, theme) => {
+  const color = getStatusColor(status);
+  if (color === "default") return theme?.palette?.grey[500] || "#9e9e9e";
+  return theme?.palette?.[color]?.main || "#2196f3";
 };
 
 export const getPriorityColor = (priority) => {

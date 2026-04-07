@@ -36,10 +36,24 @@ import {
   CheckCircle as CheckIcon,
 } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { createOrder, formatCurrency } from "../utils/api";
 import { toast } from "react-toastify";
+import MainLayout from "../components/Layout/MainLayout";
+import { styled } from "@mui/material/styles";
+import { createOrder, formatCurrency, getCustomers } from "../utils/api";
+
+const StyledCard = styled(motion.create(Card))(({ theme }) => ({
+  background: theme.palette.background.paper,
+  borderRadius: 16,
+  border: `1px solid ${theme.palette.divider}`,
+  boxShadow: theme.shadows[1],
+  overflow: "visible",
+  transition: "all 0.3s ease",
+  "&:hover": {
+    boxShadow: theme.shadows[4],
+  }
+}));
 
 const steps = ["Order Details", "Pickup & Delivery", "Preferences & Review"];
 
@@ -80,8 +94,12 @@ const timeSlots = [
 export default function CreateOrder() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [nfcTag, setNfcTag] = useState(searchParams.get("nfcTag") || "");
   const [formData, setFormData] = useState({
     serviceType: "Wash & Fold",
     items: [
@@ -117,6 +135,7 @@ export default function CreateOrder() {
   });
 
   const [errors, setErrors] = useState({});
+  const isAdmin = user?.role === "admin" || user?.role === "super-admin";
 
   useEffect(() => {
     // Set default pickup date to tomorrow
@@ -131,6 +150,22 @@ export default function CreateOrder() {
       },
     }));
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const fetchCustomers = async () => {
+      try {
+        const response = await getCustomers();
+        setCustomers(response.data.data || []);
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+        toast.error("Could not load customers for admin order creation.");
+      }
+    };
+
+    fetchCustomers();
+  }, [isAdmin]);
 
   const calculateItemPrice = (item) => {
     const service = serviceTypes.find((s) => s.value === item.service);
@@ -272,6 +307,11 @@ export default function CreateOrder() {
   };
 
   const handleSubmit = async () => {
+    if (isAdmin && !selectedUserId) {
+      toast.error("Please select the customer for this admin-created order.");
+      return;
+    }
+
     // Validate all steps before submission
     if (!validateStep(0) || !validateStep(1)) {
       toast.error("Please fill in all required fields correctly.");
@@ -283,6 +323,8 @@ export default function CreateOrder() {
       const orderData = {
         ...formData,
         ...calculateTotal(),
+        ...(isAdmin && selectedUserId ? { userId: selectedUserId } : {}),
+        ...(nfcTag ? { nfcTag } : {}),
       };
 
       const response = await createOrder(orderData);
@@ -290,7 +332,22 @@ export default function CreateOrder() {
       navigate(`/order/${response.data.data._id}`);
     } catch (error) {
       console.error("Error creating order:", error);
-      const errorMessage = error.response?.data?.message || "Failed to create order. Please try again.";
+      if (error.response?.status === 429) {
+        const retryAfterSeconds = Number.parseInt(
+          error.response?.headers?.["retry-after"] ||
+            error.response?.data?.retryAfter ||
+            "60",
+          10
+        );
+        toast.error(
+          `Too many requests right now. Please try again in about ${retryAfterSeconds}s.`
+        );
+        return;
+      }
+
+      const errorMessage =
+        error.response?.data?.message ||
+        "Failed to create order. Please try again.";
       const detailedErrors = error.response?.data?.errors ? `\n${error.response.data.errors.join('\n')}` : '';
       toast.error(errorMessage + detailedErrors);
     } finally {
@@ -376,7 +433,7 @@ export default function CreateOrder() {
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <Card sx={{ mb: 2, p: 2 }}>
+                    <StyledCard sx={{ mb: 2, p: 2 }}>
                       <Grid container spacing={2} alignItems="center">
                         <Grid size={{ xs: 12, sm: 3 }}>
                           <FormControl fullWidth size="small">
@@ -472,7 +529,7 @@ export default function CreateOrder() {
                           Price: {formatCurrency(calculateItemPrice(item))}
                         </Typography>
                       </Box>
-                    </Card>
+                    </StyledCard>
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -793,8 +850,8 @@ export default function CreateOrder() {
                   Order Summary
                 </Typography>
 
-                <Card sx={{ p: 2, mb: 2 }}>
-                  <Typography variant="h6" gutterBottom>
+                <StyledCard sx={{ p: 2, mb: 2 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
                     Items ({formData.items.length})
                   </Typography>
                   {formData.items.map((item, index) => (
@@ -845,15 +902,15 @@ export default function CreateOrder() {
                   <Box
                     sx={{ display: "flex", justifyContent: "space-between" }}
                   >
-                    <Typography variant="h6">Total:</Typography>
-                    <Typography variant="h6" color="primary">
+                    <Typography variant="h6" fontWeight="bold">Total:</Typography>
+                    <Typography variant="h6" color="primary" fontWeight="bold">
                       {formatCurrency(calculateTotal().total)}
                     </Typography>
                   </Box>
-                </Card>
+                </StyledCard>
 
-                <Card sx={{ p: 2 }}>
-                  <Typography variant="subtitle2" gutterBottom>
+                <StyledCard sx={{ p: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom fontWeight="bold">
                     Service Type: {formData.serviceType}
                   </Typography>
                   <Typography
@@ -872,18 +929,18 @@ export default function CreateOrder() {
                       label="URGENT"
                       color="error"
                       size="small"
-                      sx={{ mt: 1 }}
+                      variant="outlined"
+                      sx={{ mt: 1, fontWeight: "bold" }}
                     />
                   )}
-                  {formData.priority !== "Normal" && (
-                    <Chip
-                      label={formData.priority}
-                      color="primary"
-                      size="small"
-                      sx={{ mt: 1, ml: 1 }}
-                    />
-                  )}
-                </Card>
+                  <Chip
+                    label={formData.priority}
+                    color={formData.priority === "Urgent" ? "error" : "primary"}
+                    size="small"
+                    variant="outlined"
+                    sx={{ mt: 1, ml: 1, fontWeight: "bold" }}
+                  />
+                </StyledCard>
               </Grid>
             </Grid>
           </Box>
@@ -895,7 +952,8 @@ export default function CreateOrder() {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <MainLayout>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ mb: 4 }}>
         <Button
           startIcon={<ArrowBackIcon />}
@@ -914,6 +972,54 @@ export default function CreateOrder() {
       </Box>
 
       <Paper sx={{ p: 4 }}>
+        {(isAdmin || nfcTag) && (
+          <Alert severity="info" sx={{ mb: 3 }}>
+            {isAdmin
+              ? "Admin order creation: choose the customer this order belongs to. NFC tag value is optional and can come from a scanned sticker link."
+              : "NFC sticker detected. This order will be linked to the scanned tag."}
+          </Alert>
+        )}
+
+        {isAdmin && (
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormControl fullWidth>
+                <InputLabel>Customer</InputLabel>
+                <Select
+                  value={selectedUserId}
+                  label="Customer"
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                >
+                  {customers.map((customer) => (
+                    <MenuItem key={customer._id} value={customer._id}>
+                      {customer.name} - {customer.email}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="NFC Tag"
+                value={nfcTag}
+                onChange={(e) => setNfcTag(e.target.value)}
+                placeholder="Scan or paste NFC tag value"
+              />
+            </Grid>
+          </Grid>
+        )}
+
+        {!isAdmin && nfcTag && (
+          <TextField
+            fullWidth
+            label="NFC Tag"
+            value={nfcTag}
+            disabled
+            sx={{ mb: 3 }}
+          />
+        )}
+
         <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
           {steps.map((label) => (
             <Step key={label}>
@@ -982,5 +1088,6 @@ export default function CreateOrder() {
         </Box>
       </Paper>
     </Container>
+    </MainLayout>
   );
 }

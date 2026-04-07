@@ -80,30 +80,37 @@ import { useAuth } from "../context/AuthContext";
 import {
   getOrders,
   updateOrderStatus,
-  getNotifications,
   getShelves,
   updateShelfStatus,
   generateReport,
+  getOrderAnalytics,
+  scanNfcTag,
+  createAdmin,
+  getAllStaff,
+  APP_BASE_URL,
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  getStatusColor,
 } from "../utils/api";
 import { toast } from "react-toastify";
 import NFCScanner from "../components/NFCScanner";
+import NotificationCenter from "../components/Notifications/NotificationCenter";
+import { Add as AddIcon } from "@mui/icons-material";
+import { styled, useTheme } from "@mui/material/styles";
+import MainLayout from "../components/Layout/MainLayout";
 
-// Import chart components
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-} from 'recharts';
+const StyledCard = styled(motion.create(Card))(({ theme }) => ({
+  background: theme.palette.background.paper,
+  borderRadius: 16,
+  border: `1px solid ${theme.palette.divider}`,
+  boxShadow: theme.shadows[1],
+  overflow: "visible",
+  transition: "all 0.3s ease",
+  "&:hover": {
+    boxShadow: theme.shadows[4],
+  }
+}));
 
 const statusColors = {
   Pending: "#ff9800",
@@ -142,10 +149,22 @@ export default function AdminPanel() {
   const [statusNote, setStatusNote] = useState("");
   const [updating, setUpdating] = useState(false);
   const [nfcScannerOpen, setNfcScannerOpen] = useState(false);
+  const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
+  const [nfcWriteData, setNfcWriteData] = useState(null);
   const [dateRange, setDateRange] = useState('7d');
+  const [selectedShelf, setSelectedShelf] = useState(null);
   const [shelves, setShelves] = useState([]);
   const [shelfDialogOpen, setShelfDialogOpen] = useState(false);
-  const [selectedShelf, setSelectedShelf] = useState(null);
+  const [staff, setStaff] = useState([]);
+  const [createAdminDialogOpen, setCreateAdminDialogOpen] = useState(false);
+  const [newAdmin, setNewAdmin] = useState({
+    name: "",
+    email: "",
+    mobile: "",
+    password: "",
+    role: "admin",
+  });
+  const [creatingAdmin, setCreatingAdmin] = useState(false);
 
   const handleGenerateReport = async () => {
     try {
@@ -178,6 +197,7 @@ export default function AdminPanel() {
     fetchOrders();
     fetchAnalytics();
     fetchShelves();
+    fetchStaff();
   }, [dateRange]);
 
   const fetchShelves = async () => {
@@ -215,67 +235,65 @@ export default function AdminPanel() {
 
   const fetchAnalytics = async () => {
     try {
-      // Mock analytics data for now - replace with actual API calls
-      const mockAnalyticsData = {
-        overview: {
-          totalOrders: 156,
-          activeOrders: 23,
-          completedToday: 8,
-          totalRevenue: 45600,
-          averageOrderValue: 292,
-          customerSatisfaction: 4.7,
-        },
-        ordersByStatus: [
-          { name: 'Pending', value: 12, color: '#ff9800' },
-          { name: 'Washing', value: 8, color: '#2196f3' },
-          { name: 'Ironing', value: 6, color: '#ff5722' },
-          { name: 'Ready', value: 15, color: '#4caf50' },
-          { name: 'Delivered', value: 89, color: '#9c27b0' },
-        ],
-        dailyOrders: [
-          { date: '2024-01-08', orders: 12, revenue: 3200 },
-          { date: '2024-01-09', orders: 15, revenue: 4100 },
-          { date: '2024-01-10', orders: 8, revenue: 2800 },
-          { date: '2024-01-11', orders: 18, revenue: 5200 },
-          { date: '2024-01-12', orders: 22, revenue: 6100 },
-          { date: '2024-01-13', orders: 16, revenue: 4900 },
-          { date: '2024-01-14', orders: 19, revenue: 5400 },
-        ],
-        serviceTypes: [
-          { name: 'Wash & Fold', value: 45, color: '#4caf50' },
-          { name: 'Dry Clean', value: 28, color: '#2196f3' },
-          { name: 'Iron Only', value: 15, color: '#ff9800' },
-          { name: 'Premium Wash', value: 12, color: '#9c27b0' },
-        ],
-        turnaroundTimes: [
-          { day: 'Mon', avgHours: 24, target: 24 },
-          { day: 'Tue', avgHours: 22, target: 24 },
-          { day: 'Wed', avgHours: 26, target: 24 },
-          { day: 'Thu', avgHours: 20, target: 24 },
-          { day: 'Fri', avgHours: 28, target: 24 },
-          { day: 'Sat', avgHours: 18, target: 24 },
-          { day: 'Sun', avgHours: 16, target: 24 },
-        ],
-      };
-      setAnalytics(mockAnalyticsData);
+      setLoading(true);
+      const response = await getOrderAnalytics(dateRange === '30d' ? '30' : '7');
+      if (response.data && response.data.success) {
+        setAnalytics(response.data.data);
+      }
     } catch (error) {
       console.error('Error fetching analytics:', error);
       toast.error('Failed to fetch analytics data');
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      // For now, use mock data. Replace with actual API call
-      // const response = await getOrders(token);
-      // setOrders(response.data);
-      setOrders(mockOrders);
+      const response = await getOrders({ limit: 100 });
+      if (response.data && response.data.success) {
+        setOrders(response.data.data);
+      }
     } catch (error) {
       console.error("Error fetching orders:", error);
       toast.error("Failed to fetch orders");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStaff = async () => {
+    try {
+      const response = await getAllStaff();
+      if (response.data && response.data.success) {
+        setStaff(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching staff:", error);
+    }
+  };
+
+  const handleCreateAdmin = async () => {
+    if (!newAdmin.name || !newAdmin.email || !newAdmin.password) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    try {
+      setCreatingAdmin(true);
+      const response = await createAdmin(newAdmin);
+      if (response.data) {
+        toast.success("Admin created successfully");
+        setCreateAdminDialogOpen(false);
+        setNewAdmin({ name: "", email: "", mobile: "", password: "", role: "admin" });
+        fetchStaff();
+      }
+    } catch (error) {
+      console.error("Error creating admin:", error);
+      toast.error(error.response?.data?.message || "Failed to create admin");
+    } finally {
+      setCreatingAdmin(false);
     }
   };
 
@@ -295,8 +313,11 @@ export default function AdminPanel() {
 
     try {
       setUpdating(true);
-      // For now, simulate API call. Replace with actual API call
-      // await updateOrderStatus(token, selectedOrder._id, { status: newStatus, note: statusNote });
+      await updateOrderStatus(selectedOrder._id, { 
+        status: newStatus, 
+        note: statusNote,
+        updatedBy: user.id 
+      });
 
       // Update local state
       setOrders((prevOrders) =>
@@ -310,6 +331,8 @@ export default function AdminPanel() {
       toast.success(`Order status updated to ${newStatus}`);
       setUpdateDialogOpen(false);
       setSelectedOrder(null);
+      fetchOrders();
+      fetchAnalytics(); // Refresh analytics after update
     } catch (error) {
       console.error("Error updating order status:", error);
       toast.error("Failed to update order status");
@@ -319,6 +342,25 @@ export default function AdminPanel() {
   };
 
   const handleNfcScannerOpen = () => {
+    setSelectedOrder(null); // Clear selection for general scan (status update)
+    setNfcWriteData(null);
+    setNfcScannerOpen(true);
+  };
+
+  const handleNfcAssignOpen = (order) => {
+    setSelectedOrder(order); // Select order for assignment mode
+    setNfcWriteData(null);
+    setNfcScannerOpen(true);
+  };
+
+  const handleNfcDemoWriteOpen = () => {
+    const tag = `DEMO_NFC_${Date.now()}`;
+    setSelectedOrder(null);
+    setNfcWriteData({
+      nfcTag: tag,
+      url: `${APP_BASE_URL}/nfc-demo?tag=${encodeURIComponent(tag)}`,
+      action: "create_demo_order",
+    });
     setNfcScannerOpen(true);
   };
 
@@ -334,6 +376,23 @@ export default function AdminPanel() {
   const handleStatusChange = (orderId, newStatus, note) => {
     handleOrderUpdate(orderId, newStatus);
     setNfcScannerOpen(false);
+  };
+
+  const getNfcTagFromScan = (nfcData) => {
+    if (!nfcData) return "";
+    if (typeof nfcData.content === "object" && nfcData.content?.nfcTag) {
+      return nfcData.content.nfcTag;
+    }
+    if (typeof nfcData.content === "string") {
+      try {
+        const url = new URL(nfcData.content);
+        return url.searchParams.get("nfcTag") || nfcData.content;
+      } catch {
+        // Plain tag value, not a URL.
+      }
+      return nfcData.content;
+    }
+    return nfcData.serialNumber || "";
   };
 
   const getFilteredOrders = () => {
@@ -378,12 +437,15 @@ export default function AdminPanel() {
     return ((currentIndex + 1) / statusOrder.length) * 100;
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  const formatTime = (timeString) => {
-    return timeString;
+  const formatCompletion = (order) => {
+    if (order.status === "Delivered") {
+      return order.actualCompletion
+        ? `Completed ${formatDate(order.actualCompletion)}`
+        : "Completed";
+    }
+    return order.estimatedCompletion
+      ? `Est. ${formatDate(order.estimatedCompletion)}`
+      : "Not scheduled";
   };
 
   const renderOrderRow = (order) => (
@@ -404,10 +466,10 @@ export default function AdminPanel() {
       <TableCell>
         <Box>
           <Typography variant="subtitle2" fontWeight="bold">
-            {order.customerName}
+            {order.user?.name || order.customerName || "Customer"}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {order.customerPhone}
+            {order.user?.mobile || order.user?.phone || order.customerPhone || "N/A"}
           </Typography>
         </Box>
       </TableCell>
@@ -424,16 +486,18 @@ export default function AdminPanel() {
           icon={statusIcons[order.status]}
           label={order.status}
           size="small"
-          sx={{
-            backgroundColor: statusColors[order.status],
-            color: "white",
-            "& .MuiChip-icon": { color: "white" },
-          }}
+          color={getStatusColor(order.status)}
+          sx={{ fontWeight: "bold" }}
         />
       </TableCell>
       <TableCell>
         <Typography variant="subtitle2" fontWeight="bold">
-          ₹{order.totalAmount}
+          {formatCurrency(order.total || order.totalAmount || 0)}
+        </Typography>
+      </TableCell>
+      <TableCell>
+        <Typography variant="body2" fontWeight={600}>
+          {formatCompletion(order)}
         </Typography>
       </TableCell>
       <TableCell>
@@ -456,6 +520,15 @@ export default function AdminPanel() {
               <EditIcon />
             </IconButton>
           </Tooltip>
+          <Tooltip title="Assign NFC Sticker">
+            <IconButton
+              size="small"
+              onClick={() => handleNfcAssignOpen(order)}
+              color="info"
+            >
+              <NfcIcon />
+            </IconButton>
+          </Tooltip>
         </Box>
       </TableCell>
     </TableRow>
@@ -463,8 +536,8 @@ export default function AdminPanel() {
 
   const renderAnalytics = () => (
     <Grid container spacing={3}>
-      <Grid item xs={12} md={6} lg={3}>
-        <Card
+      <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+        <StyledCard
           sx={{
             p: 3,
             textAlign: "center",
@@ -474,13 +547,13 @@ export default function AdminPanel() {
         >
           <TrendingIcon sx={{ fontSize: 40, mb: 1 }} />
           <Typography variant="h4" component="div" sx={{ fontWeight: "bold" }}>
-            {orders.length}
+            {analytics.totalOrders || 0}
           </Typography>
-          <Typography variant="body2">Total Orders</Typography>
-        </Card>
+          <Typography variant="body2">Total Orders ({dateRange})</Typography>
+        </StyledCard>
       </Grid>
-      <Grid item xs={12} md={6} lg={3}>
-        <Card
+      <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+        <StyledCard
           sx={{
             p: 3,
             textAlign: "center",
@@ -490,13 +563,13 @@ export default function AdminPanel() {
         >
           <CartIcon sx={{ fontSize: 40, mb: 1 }} />
           <Typography variant="h4" component="div" sx={{ fontWeight: "bold" }}>
-            ₹{orders.reduce((sum, order) => sum + order.totalAmount, 0)}
+            {formatCurrency(analytics.totalSpent || 0)}
           </Typography>
-          <Typography variant="body2">Total Revenue</Typography>
-        </Card>
+          <Typography variant="body2">Total Revenue ({dateRange})</Typography>
+        </StyledCard>
       </Grid>
-      <Grid item xs={12} md={6} lg={3}>
-        <Card
+      <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+        <StyledCard
           sx={{
             p: 3,
             textAlign: "center",
@@ -506,13 +579,13 @@ export default function AdminPanel() {
         >
           <CheckIcon sx={{ fontSize: 40, mb: 1 }} />
           <Typography variant="h4" component="div" sx={{ fontWeight: "bold" }}>
-            {orders.filter((o) => o.status === "Delivered").length}
+            {analytics.analytics?.find(a => a._id === 'Delivered')?.count || 0}
           </Typography>
-          <Typography variant="body2">Completed</Typography>
-        </Card>
+          <Typography variant="body2">Completed Orders ({dateRange})</Typography>
+        </StyledCard>
       </Grid>
-      <Grid item xs={12} md={6} lg={3}>
-        <Card
+      <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+        <StyledCard
           sx={{
             p: 3,
             textAlign: "center",
@@ -522,91 +595,132 @@ export default function AdminPanel() {
         >
           <StarIcon sx={{ fontSize: 40, mb: 1 }} />
           <Typography variant="h4" component="div" sx={{ fontWeight: "bold" }}>
-            4.8
+            {analytics.avgRating || "N/A"}
           </Typography>
-          <Typography variant="body2">Rating</Typography>
+          <Typography variant="body2">Avg Rating</Typography>
+        </StyledCard>
+      </Grid>
+    </Grid>
+  );
+
+  const getAnalyticsRows = () =>
+    (analytics.analytics || []).map((item) => ({
+      status: item._id || "Unknown",
+      count: item.count || 0,
+      totalAmount: item.totalAmount || 0,
+    }));
+
+  const renderStaffManagement = () => (
+    <Grid container spacing={3}>
+      <Grid size={{ xs: 12 }}>
+        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">Admin & Staff Management</Typography>
+          {user?.role === 'super-admin' && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setCreateAdminDialogOpen(true)}
+              sx={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}
+            >
+              Add New Admin
+            </Button>
+          )}
+        </Box>
+        <Card>
+          <CardContent sx={{ p: 0 }}>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Staff Member</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Mobile</TableCell>
+                    <TableCell>Role</TableCell>
+                    <TableCell>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {staff.length > 0 ? staff.map((member) => (
+                    <TableRow key={member._id}>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Avatar sx={{ bgcolor: member.role === 'super-admin' ? 'secondary.main' : 'primary.main' }}>
+                            {member.name.charAt(0)}
+                          </Avatar>
+                          <Typography variant="subtitle2">{member.name}</Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>{member.email}</TableCell>
+                      <TableCell>{member.mobile || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={member.role}
+                          size="small"
+                          color={member.role === 'super-admin' ? 'secondary' : 'default'}
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={member.emailVerified ? "Verified" : "Unverified"}
+                          size="small"
+                          color={member.emailVerified ? "success" : "warning"}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  )) : (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">
+                        <Typography variant="body2" sx={{ py: 3 }}>No staff members found</Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
         </Card>
       </Grid>
     </Grid>
   );
 
-  const renderStaffManagement = () => (
+  const renderShelfManagement = () => (
     <Grid container spacing={3}>
-      <Grid item xs={12} md={6}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Staff Members
+      {shelves && shelves.length > 0 ? shelves.map((shelf) => (
+        <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2 }} key={shelf._id}>
+          <Paper
+            onClick={() => handleShelfClick(shelf)}
+            sx={{
+              p: 2,
+              textAlign: 'center',
+              cursor: 'pointer',
+              border: `2px solid ${shelf.isOccupied ? theme.palette.secondary.main : theme.palette.success.main}`,
+              bgcolor: shelf.isOccupied ? `${theme.palette.secondary.main}05` : `${theme.palette.success.main}05`,
+              '&:hover': {
+                bgcolor: shelf.isOccupied ? `${theme.palette.secondary.main}10` : `${theme.palette.success.main}10`,
+              }
+            }}
+          >
+            <Typography variant="h6" fontWeight="bold">{shelf.code}</Typography>
+            <Typography variant="caption" color={shelf.isOccupied ? "secondary" : "success"}>
+              {shelf.isOccupied ? `Order: ${shelf.currentOrder?.orderNumber || "Occupied"}` : "Available"}
             </Typography>
-            <List>
-              <ListItem>
-                <ListItemIcon>
-                  <Avatar sx={{ bgcolor: "primary.main" }}>JD</Avatar>
-                </ListItemIcon>
-                <ListItemText
-                  primary="John Doe"
-                  secondary="Senior Staff - Washing & Ironing"
-                />
-              </ListItem>
-              <ListItem>
-                <ListItemIcon>
-                  <Avatar sx={{ bgcolor: "secondary.main" }}>JS</Avatar>
-                </ListItemIcon>
-                <ListItemText
-                  primary="Jane Smith"
-                  secondary="Staff - Pickup & Delivery"
-                />
-              </ListItem>
-            </List>
-          </CardContent>
-        </Card>
-      </Grid>
-      <Grid item xs={12} md={6}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Recent Activities
-            </Typography>
-            <Timeline>
-              <TimelineItem>
-                <TimelineOppositeContent color="text.secondary">
-                  10:30 AM
-                </TimelineOppositeContent>
-                <TimelineSeparator>
-                  <TimelineDot color="primary" />
-                  <TimelineConnector />
-                </TimelineSeparator>
-                <TimelineContent>
-                  <Typography variant="subtitle2">
-                    Order LAU12345678 picked up
-                  </Typography>
-                  <Typography variant="caption">by John Doe</Typography>
-                </TimelineContent>
-              </TimelineItem>
-              <TimelineItem>
-                <TimelineOppositeContent color="text.secondary">
-                  09:15 AM
-                </TimelineOppositeContent>
-                <TimelineSeparator>
-                  <TimelineDot color="secondary" />
-                  <TimelineConnector />
-                </TimelineSeparator>
-                <TimelineContent>
-                  <Typography variant="subtitle2">
-                    Order LAU87654321 confirmed
-                  </Typography>
-                  <Typography variant="caption">by system</Typography>
-                </TimelineContent>
-              </TimelineItem>
-            </Timeline>
-          </CardContent>
-        </Card>
-      </Grid>
+          </Paper>
+        </Grid>
+      )) : (
+        <Grid size={{ xs: 12 }}>
+          <Box sx={{ p: 5, textAlign: 'center' }}>
+            <Typography variant="h6" color="text.secondary">No shelves configured</Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>Shelves can be added in the database.</Typography>
+          </Box>
+        </Grid>
+      )}
     </Grid>
   );
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
+    <MainLayout>
+      <Container maxWidth="xl" sx={{ py: 4 }}>
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Box
@@ -619,7 +733,7 @@ export default function AdminPanel() {
         >
           <Box>
             <Typography
-              variant="h4"
+              variant="h3"
               component="h1"
               sx={{
                 fontWeight: "bold",
@@ -647,12 +761,28 @@ export default function AdminPanel() {
                 },
               }}
             >
-              NFC Scanner
+              NFC Scan
             </Button>
             <Button
               variant="outlined"
+              startIcon={<NfcIcon />}
+              onClick={handleNfcDemoWriteOpen}
+            >
+              Write Demo Tag
+            </Button>
+            <Select
+              size="small"
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+              sx={{ minWidth: 100 }}
+            >
+              <MenuItem value="7d">7 Days</MenuItem>
+              <MenuItem value="30d">30 Days</MenuItem>
+            </Select>
+            <Button
+              variant="outlined"
               startIcon={<NotificationsIcon />}
-              onClick={() => navigate("/notifications")}
+              onClick={() => setNotificationCenterOpen(true)}
             >
               Notifications
             </Button>
@@ -701,8 +831,12 @@ export default function AdminPanel() {
                   </Button>
                 </Grid>
                 <Grid>
-                  <Button variant="outlined" startIcon={<PeopleIcon />}>
-                    Add Staff
+                  <Button 
+                    variant="outlined" 
+                    startIcon={<PeopleIcon />}
+                    onClick={() => setActiveTab(3)}
+                  >
+                    Manage Staff
                   </Button>
                 </Grid>
                 <Grid>
@@ -737,13 +871,14 @@ export default function AdminPanel() {
                       <TableCell>Service</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Amount</TableCell>
+                      <TableCell>Completion</TableCell>
                       <TableCell>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={6} align="center">
+                        <TableCell colSpan={7} align="center">
                           <CircularProgress />
                         </TableCell>
                       </TableRow>
@@ -751,7 +886,7 @@ export default function AdminPanel() {
                       getFilteredOrders().map(renderOrderRow)
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={6} align="center">
+                        <TableCell colSpan={7} align="center">
                           <Typography variant="body1" color="text.secondary">
                             No orders found
                           </Typography>
@@ -815,11 +950,42 @@ export default function AdminPanel() {
                   <Card>
                     <CardContent>
                       <Typography variant="h6" gutterBottom>
-                        Revenue Trends
+                        Revenue by Status
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Revenue tracking and analytics will be displayed here
-                      </Typography>
+                      <Stack spacing={1.5} sx={{ mt: 2 }}>
+                        {getAnalyticsRows().length > 0 ? (
+                          getAnalyticsRows().map((item) => (
+                            <Box
+                              key={item.status}
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                gap: 2,
+                                p: 1.5,
+                                borderRadius: 2,
+                                bgcolor: "action.hover",
+                              }}
+                            >
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="body2" fontWeight={700} noWrap>
+                                  {item.status}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {item.count} order{item.count === 1 ? "" : "s"}
+                                </Typography>
+                              </Box>
+                              <Typography variant="body2" fontWeight={800} color="primary" noWrap>
+                                {formatCurrency(item.totalAmount)}
+                              </Typography>
+                            </Box>
+                          ))
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            No revenue data available for this period.
+                          </Typography>
+                        )}
+                      </Stack>
                     </CardContent>
                   </Card>
                 </Grid>
@@ -859,72 +1025,129 @@ export default function AdminPanel() {
         onClose={() => setUpdateDialogOpen(false)}
         maxWidth="sm"
         fullWidth
+        PaperProps={{ sx: { borderRadius: 4 } }}
       >
-        <DialogTitle>Update Order Status</DialogTitle>
+        <DialogTitle sx={{ fontWeight: "bold" }}>Update Order Status</DialogTitle>
         <DialogContent>
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" gutterBottom>
+          <Box sx={{ mb: 3, mt: 1, p: 2, bgcolor: "action.hover", borderRadius: 2 }}>
+            <Typography variant="subtitle2" gutterBottom fontWeight="bold">
               Order: {selectedOrder?.orderNumber}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Customer: {selectedOrder?.customerName}
+              Customer: {selectedOrder?.user?.name || selectedOrder?.customerName || "Customer"}
             </Typography>
           </Box>
-          <FormControl fullWidth sx={{ mb: 2 }}>
+          <FormControl fullWidth sx={{ mb: 3 }}>
             <InputLabel>New Status</InputLabel>
             <Select
               value={newStatus}
               onChange={(e) => setNewStatus(e.target.value)}
               label="New Status"
             >
-              {Object.keys(statusColors).map((status) => (
+              {[
+                "Pending",
+                "Confirmed",
+                "Picked Up",
+                "Washing",
+                "Ironing",
+                "Ready for Pickup",
+                "Out for Delivery",
+                "Delivered",
+                "Cancelled",
+              ].map((status) => (
                 <MenuItem key={status} value={status}>
-                  {status}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Box
+                      sx={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        bgcolor: `${getStatusColor(status)}.main`,
+                      }}
+                    />
+                    {status}
+                  </Box>
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
           <TextField
             fullWidth
-            label="Status Note (Optional)"
+            label="Status Note"
+            placeholder="Add a reason or update for the customer..."
             value={statusNote}
             onChange={(e) => setStatusNote(e.target.value)}
             multiline
             rows={3}
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setUpdateDialogOpen(false)}>Cancel</Button>
           <Button
             onClick={handleUpdateStatus}
             variant="contained"
-            disabled={updating}
+            disabled={updating || !newStatus}
+            sx={{ px: 4 }}
           >
-            {updating ? <CircularProgress size={20} /> : "Update Status"}
+            {updating ? <CircularProgress size={24} /> : "Record Update"}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* NFC Scanner Dialog */}
-      <Dialog
+      <NFCScanner
         open={nfcScannerOpen}
         onClose={() => setNfcScannerOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <NfcIcon color="primary" />
-            NFC Scanner
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <NFCScanner
-            onOrderUpdate={handleOrderUpdate}
-            onStatusChange={handleStatusChange}
-          />
-        </DialogContent>
-      </Dialog>
+        onScanSuccess={async (nfcData) => {
+          try {
+            if (nfcData.type === "write_success") {
+              if (nfcWriteData?.action === "create_demo_order") {
+                toast.success("Demo NFC sticker is ready. Tap it with a phone to create a sample order.");
+                setNfcWriteData(null);
+                return;
+              }
+
+              // Successfully assigned tag to order
+              const tagId = getNfcTagFromScan(nfcData);
+              await scanNfcTag({
+                nfcTag: tagId,
+                operation: "assign",
+                orderId: selectedOrder?._id
+              });
+              fetchOrders();
+            } else {
+              // Scanned for status update
+              const tagId = getNfcTagFromScan(nfcData);
+              await scanNfcTag({
+                nfcTag: tagId,
+                operation: "status_update",
+                location: "Admin Facility"
+              });
+              fetchOrders();
+            }
+          } catch (err) {
+            console.error(err);
+            toast.error("NFC operation failed on server");
+          }
+        }}
+        orderId={selectedOrder?.orderNumber}
+        mode={selectedOrder || nfcWriteData ? "write" : "read"}
+        writeData={
+          nfcWriteData ||
+          (selectedOrder
+            ? {
+                nfcTag: selectedOrder.nfcTag,
+                orderId: selectedOrder._id,
+                orderNumber: selectedOrder.orderNumber,
+                action: "track_order",
+              }
+            : undefined)
+        }
+      />
+
+      <NotificationCenter
+        open={notificationCenterOpen}
+        onClose={() => setNotificationCenterOpen(false)}
+      />
 
       {/* Floating Action Button */}
       <Fab
@@ -940,6 +1163,105 @@ export default function AdminPanel() {
       >
         <AddIcon />
       </Fab>
+
+      {/* Create Admin Dialog */}
+      <Dialog
+        open={createAdminDialogOpen}
+        onClose={() => setCreateAdminDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 4 } }}
+      >
+        <DialogTitle sx={{ fontWeight: "bold" }}>Add New Admin Account</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <TextField
+              label="Full Name"
+              value={newAdmin.name}
+              onChange={(e) => setNewAdmin({ ...newAdmin, name: e.target.value })}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Email Address"
+              type="email"
+              value={newAdmin.email}
+              onChange={(e) => setNewAdmin({ ...newAdmin, email: e.target.value })}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Mobile Number"
+              value={newAdmin.mobile}
+              onChange={(e) => setNewAdmin({ ...newAdmin, mobile: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Password"
+              type="password"
+              value={newAdmin.password}
+              onChange={(e) => setNewAdmin({ ...newAdmin, password: e.target.value })}
+              fullWidth
+              required
+            />
+            <FormControl fullWidth>
+              <InputLabel>Role</InputLabel>
+              <Select
+                value={newAdmin.role}
+                label="Role"
+                onChange={(e) => setNewAdmin({ ...newAdmin, role: e.target.value })}
+              >
+                <MenuItem value="admin">Admin</MenuItem>
+                <MenuItem value="super-admin">Super Admin</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setCreateAdminDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleCreateAdmin}
+            variant="contained"
+            disabled={creatingAdmin}
+            sx={{ px: 4, background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}
+          >
+            {creatingAdmin ? <CircularProgress size={24} color="inherit" /> : "Create Admin"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Shelf Toggle Dialog */}
+      <Dialog
+        open={shelfDialogOpen}
+        onClose={() => setShelfDialogOpen(false)}
+        PaperProps={{ sx: { borderRadius: 4 } }}
+      >
+        <DialogTitle sx={{ fontWeight: "bold" }}>Shelf {selectedShelf?.code}</DialogTitle>
+        <DialogContent>
+          {selectedShelf?.isOccupied ? (
+            <Box sx={{ pt: 1 }}>
+              <Typography variant="body1">Currently occupied by: <strong>{selectedShelf.currentOrder?.orderNumber}</strong></Typography>
+              <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">Marking this as cleared will make the shelf available for new orders.</Typography>
+            </Box>
+          ) : (
+            <Typography variant="body1">This shelf is currently available.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setShelfDialogOpen(false)}>Close</Button>
+          {selectedShelf?.isOccupied && (
+            <Button
+              onClick={clearShelf}
+              variant="contained"
+              color="secondary"
+              sx={{ borderRadius: 2 }}
+            >
+              Clear Shelf
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </Container>
+    </MainLayout>
   );
 }

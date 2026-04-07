@@ -367,7 +367,6 @@ export default function Register() {
               <Button
                 type="submit"
                 variant="contained"
-                color="primary"
                 fullWidth
                 disabled={loading || !isFormValid}
                 sx={{
@@ -376,11 +375,11 @@ export default function Register() {
                   fontSize: "1.1rem",
                   background: loading
                     ? "rgba(0, 0, 0, 0.12)"
-                    : "linear-gradient(45deg, #00bcd4 30%, #2196f3 90%)",
+                    : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                   "&:hover": {
                     background: loading
                       ? "rgba(0, 0, 0, 0.12)"
-                      : "linear-gradient(45deg, #00acc1 30%, #1976d2 90%)",
+                      : "linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)",
                   },
                 }}
               >

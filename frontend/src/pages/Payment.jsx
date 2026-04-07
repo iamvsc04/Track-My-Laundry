@@ -232,7 +232,7 @@ export default function Payment() {
           )}
 
           {method.fields.includes("cardNumber") && (
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Card Number"
@@ -262,7 +262,7 @@ export default function Payment() {
           )}
 
           {method.fields.includes("cvv") && (
-            <Grid item xs={6}>
+            <Grid size={{ xs: 6 }}>
               <TextField
                 fullWidth
                 label="CVV"
@@ -275,7 +275,7 @@ export default function Payment() {
           )}
 
           {method.fields.includes("cardholderName") && (
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Cardholder Name"
@@ -289,7 +289,7 @@ export default function Payment() {
           )}
 
           {method.fields.includes("bankName") && (
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <FormControl fullWidth>
                 <InputLabel>Select Bank</InputLabel>
                 <Select
@@ -310,7 +310,7 @@ export default function Payment() {
           )}
 
           {method.fields.includes("accountNumber") && (
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Account Number"
@@ -325,7 +325,7 @@ export default function Payment() {
           )}
 
           {method.fields.includes("walletType") && (
-            <Grid item xs={6}>
+            <Grid size={{ xs: 6 }}>
               <FormControl fullWidth>
                 <InputLabel>Wallet Type</InputLabel>
                 <Select
@@ -346,7 +346,7 @@ export default function Payment() {
           )}
 
           {method.fields.includes("mobileNumber") && (
-            <Grid item xs={6}>
+            <Grid size={{ xs: 6 }}>
               <TextField
                 fullWidth
                 label="Mobile Number"

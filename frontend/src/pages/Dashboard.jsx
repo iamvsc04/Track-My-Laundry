@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Typography,
   Box,
@@ -21,7 +21,6 @@ import {
   LocalLaundryService as LaundryIcon,
   CheckCircle as CheckIcon,
   Schedule as ScheduleIcon,
-  TrendingUp as TrendingIcon,
   ArrowForward as ArrowForwardIcon,
   LocalShipping as DeliveryIcon,
   Receipt as ReceiptIcon
@@ -40,7 +39,7 @@ import {
   useFeedbackAnimation,
   animationVariants,
 } from '../hooks/useAnimations';
-import { getOrders, getOrderAnalytics, getUnreadNotificationCount, getProfile, formatCurrency, formatDate } from '../utils/api';
+import { getOrders, getOrderAnalytics, getProfile, formatCurrency, formatDate, getStatusColor } from '../utils/api';
 
 // Styled Components
 const StyledCard = styled(motion.create(Card))(({ theme }) => ({
@@ -137,19 +136,8 @@ const QuickActionCard = ({ title, description, icon, onClick, color }) => {
   );
 };
 
-const RecentOrderRow = ({ order, index }) => {
+const RecentOrderRow = ({ order, index, onOpen, showCustomer }) => {
   const theme = useTheme();
-  
-  const getStatusColor = (status) => {
-    const colors = {
-      'Pending': theme.palette.warning,
-      'Washing': theme.palette.info,
-      'Ready for Pickup': theme.palette.success,
-      'Delivered': theme.palette.primary,
-    };
-    return colors[status] || theme.palette.grey;
-  };
-
   const statusColor = getStatusColor(order.status);
 
   return (
@@ -160,6 +148,7 @@ const RecentOrderRow = ({ order, index }) => {
     >
       <Paper
         variant="outlined"
+        onClick={onOpen}
         sx={{
           p: 2,
           mb: 2,
@@ -167,6 +156,7 @@ const RecentOrderRow = ({ order, index }) => {
           alignItems: 'center',
           justifyContent: 'space-between',
           borderRadius: 3,
+          cursor: 'pointer',
           borderColor: 'transparent',
           bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
           '&:hover': {
@@ -175,7 +165,7 @@ const RecentOrderRow = ({ order, index }) => {
         }}
       >
         <Stack direction="row" spacing={2} alignItems="center">
-          <Avatar sx={{ bgcolor: statusColor.light, color: statusColor.dark }}>
+          <Avatar sx={{ bgcolor: `${theme.palette[statusColor]?.main || theme.palette.grey[500]}15`, color: theme.palette[statusColor]?.main || theme.palette.grey[500] }}>
             <LaundryIcon />
           </Avatar>
           <Box>
@@ -185,6 +175,11 @@ const RecentOrderRow = ({ order, index }) => {
             <Typography variant="caption" color="text.secondary">
               {formatDate(order.createdAt)} • {order.items?.length || 0} items
             </Typography>
+            {showCustomer && (
+              <Typography variant="caption" color="text.secondary" display="block">
+                Customer: {order.user?.name || "Customer"}
+              </Typography>
+            )}
           </Box>
         </Stack>
         
@@ -192,9 +187,8 @@ const RecentOrderRow = ({ order, index }) => {
            <Chip 
               label={order.status}
               size="small"
+              color={statusColor}
               sx={{ 
-                bgcolor: statusColor.light, 
-                color: statusColor.dark, 
                 fontWeight: 700,
                 borderRadius: 2
               }} 
@@ -202,6 +196,17 @@ const RecentOrderRow = ({ order, index }) => {
             <Typography variant="subtitle1" fontWeight={700} sx={{ minWidth: 80, textAlign: 'right' }}>
               {formatCurrency(order.total)}
             </Typography>
+            <Tooltip title="Open order">
+              <IconButton
+                size="small"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpen();
+                }}
+              >
+                <ArrowForwardIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
         </Box>
       </Paper>
     </motion.div>
@@ -213,6 +218,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const isAdmin = user?.role === "admin" || user?.role === "super-admin";
 
   // State
   const [orders, setOrders] = useState([]);
@@ -221,7 +227,6 @@ export default function Dashboard() {
     totalOrders: 0,
     activeOrders: 0,
     readyOrders: 0,
-    totalSpent: 0,
   });
 
   // Animations
@@ -229,17 +234,16 @@ export default function Dashboard() {
   const totalOrdersCount = useCounterAnimation(stats.totalOrders, 2);
   const activeOrdersCount = useCounterAnimation(stats.activeOrders, 1.5);
   const readyOrdersCount = useCounterAnimation(stats.readyOrders, 1);
-  const totalSpentCount = useCounterAnimation(stats.totalSpent, 2.5);
 
-  const greeting = `Welcome back, ${user?.name?.split(' ')[0] || "User"}!`;
+  const greeting = `Welcome back, ${user?.name?.split(' ')[0] || "Admin"}!`;
   const { displayText: typedGreeting } = useTypingAnimation(greeting, 50);
+  const hasFetchedRef = useRef(false);
 
   const fetchDashboardData = async () => {
     try {
-      const [ordersRes, statsRes, unreadRes] = await Promise.all([
+      const [ordersRes, statsRes] = await Promise.all([
         getOrders({ limit: 5 }),
         getOrderAnalytics(),
-        getUnreadNotificationCount()
       ]);
 
       const ordersData = ordersRes.data.data || [];
@@ -255,7 +259,6 @@ export default function Dashboard() {
 
       setStats({
         totalOrders: analyticsData.totalOrders || 0,
-        totalSpent: analyticsData.totalSpent || 0,
         readyOrders: readyCount,
         activeOrders: activeCount
       });
@@ -274,6 +277,9 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    // React 18 StrictMode mounts effects twice in dev; guard to avoid double-fetching.
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
     fetchDashboardData();
   }, []);
 
@@ -337,15 +343,6 @@ export default function Dashboard() {
             delay={0.2}
           />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard 
-            title="Total Spent" 
-            value={`₹${totalSpentCount}`} 
-            icon={<TrendingIcon fontSize="large" />} 
-            color={theme.palette.info} 
-            delay={0.3}
-          />
-        </Grid>
       </Grid>
 
       {/* Main Content Split */}
@@ -366,7 +363,13 @@ export default function Dashboard() {
               {orders.length > 0 ? (
                 <Box sx={{ p: 2 }}>
                   {orders.map((order, index) => (
-                    <RecentOrderRow key={order._id} order={order} index={index} />
+                    <RecentOrderRow
+                      key={order._id}
+                      order={order}
+                      index={index}
+                      onOpen={() => navigate(`/order/${order._id}`)}
+                      showCustomer={user?.role === "admin" || user?.role === "super-admin"}
+                    />
                   ))}
                 </Box>
               ) : (
@@ -394,13 +397,7 @@ export default function Dashboard() {
                onClick={() => navigate('/create-order')}
                color={theme.palette.primary}
              />
-             <QuickActionCard
-               title="View Pricing"
-               description="Check our service rates"
-               icon={<ReceiptIcon fontSize="large" />}
-               onClick={() => navigate('/pricing')}
-               color={theme.palette.secondary}
-             />
+             {/* Pricing removed from user dashboard */}
              
 
           </Stack>
