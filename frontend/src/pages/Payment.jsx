@@ -47,7 +47,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getOrderById, createPayment, processPayment, formatCurrency } from "../utils/api";
+import { getOrderById, createPayment, processPayment, formatCurrency, formatDate, formatDateTime } from "../utils/api";
 import { toast } from "react-toastify";
 
 const paymentMethods = [
@@ -389,7 +389,7 @@ export default function Payment() {
                     Order #{order.orderNumber}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Created on {new Date(order.createdAt).toLocaleDateString()}
+                    Created on {formatDate(order.createdAt)}
                   </Typography>
 
                   <Box sx={{ mt: 2 }}>
@@ -618,7 +618,7 @@ export default function Payment() {
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           Paid on:{" "}
-                          {new Date(paymentDetails.paidAt).toLocaleString()}
+                          {formatDateTime(paymentDetails.paidAt)}
                         </Typography>
                       </Box>
                     )}

@@ -3,7 +3,13 @@ import axios from "axios";
 export const APP_BASE_URL =
   import.meta.env.VITE_APP_BASE_URL || window.location.origin;
 
-const configuredApiUrl = import.meta.env.VITE_API_URL;
+const normalizeApiBaseUrl = (value) => {
+  if (!value) return value;
+  const trimmed = String(value).replace(/\/+$/, "");
+  return /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
+};
+
+const configuredApiUrl = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
 const isLocalFrontend = ["localhost", "127.0.0.1"].includes(
   window.location.hostname
 );
@@ -168,7 +174,10 @@ export const formatCurrency = (amount, currency = "INR") => {
 };
 
 export const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString("en-IN", {
+  const date = new Date(dateString);
+  if (!dateString || Number.isNaN(date.getTime())) return "-";
+
+  return date.toLocaleDateString("en-IN", {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -176,7 +185,10 @@ export const formatDate = (dateString) => {
 };
 
 export const formatDateTime = (dateString) => {
-  return new Date(dateString).toLocaleString("en-IN", {
+  const date = new Date(dateString);
+  if (!dateString || Number.isNaN(date.getTime())) return "-";
+
+  return date.toLocaleString("en-IN", {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -186,8 +198,11 @@ export const formatDateTime = (dateString) => {
 };
 
 export const getTimeAgo = (dateString) => {
+  const parsed = new Date(dateString);
+  if (!dateString || Number.isNaN(parsed.getTime())) return "-";
+
   const now = new Date();
-  const past = new Date(dateString);
+  const past = parsed;
   const diffInSeconds = Math.floor((now - past) / 1000);
 
   if (diffInSeconds < 60) return "Just now";
