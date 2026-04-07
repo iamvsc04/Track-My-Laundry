@@ -2,6 +2,8 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const { body, validationResult } = require("express-validator");
 
+const isDev = (process.env.NODE_ENV || "development") !== "production";
+
 // Rate limiting middleware
 const createRateLimiter = (windowMs = 15 * 60 * 1000, max = 100) => {
   return rateLimit({
@@ -16,11 +18,27 @@ const createRateLimiter = (windowMs = 15 * 60 * 1000, max = 100) => {
   });
 };
 
+const getEnvInt = (name, fallback) => {
+  const raw = process.env[name];
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const rateLimitWindowMinutes = getEnvInt("RATE_LIMIT_WINDOW", 15);
+const rateLimitMax = getEnvInt("RATE_LIMIT_MAX", isDev ? 1000 : 100);
+const authRateLimitMax = getEnvInt("AUTH_RATE_LIMIT_MAX", 5);
+
 // General API rate limiter
-const apiRateLimiter = createRateLimiter(15 * 60 * 1000, 100);
+const apiRateLimiter = createRateLimiter(
+  rateLimitWindowMinutes * 60 * 1000,
+  rateLimitMax
+);
 
 // Strict rate limiter for auth endpoints
-const authRateLimiter = createRateLimiter(15 * 60 * 1000, 5);
+const authRateLimiter = createRateLimiter(
+  rateLimitWindowMinutes * 60 * 1000,
+  authRateLimitMax
+);
 
 // CORS configuration
 // Support multiple allowed origins via env FRONTEND_URLS (comma-separated) or FRONTEND_URL
@@ -56,9 +74,12 @@ const allowedOrigins = rawOrigins
   .filter(Boolean);
 
 console.log("[CORS] Allowed Origins:", allowedOrigins);
-console.log("[Env] MONGODB_URI starts with:", process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 15) + "..." : "undefined");
-
-const isDev = (process.env.NODE_ENV || "development") !== "production";
+console.log(
+  "[Env] MONGODB_URI starts with:",
+  process.env.MONGODB_URI
+    ? process.env.MONGODB_URI.substring(0, 15) + "..."
+    : "undefined"
+);
 
 const corsOptions = {
   origin: function (origin, callback) {

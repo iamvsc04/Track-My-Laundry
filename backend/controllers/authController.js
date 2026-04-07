@@ -486,3 +486,90 @@ exports.updateNotificationPreferences = async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
+// Admin Management: Create a new admin (Super Admin only)
+exports.createAdmin = async (req, res, next) => {
+  try {
+    const { name, email, mobile, password, role } = req.body;
+
+    // Only allow super-admin or admin to create other admins
+    // (Additional check in routes is better, but let's be safe here)
+    if (req.user.role !== "super-admin") {
+      return res.status(403).json({ message: "Only Super Admins can create new admins" });
+    }
+
+    const existingUser = await User.findOne({ $or: [{ email }, { mobile }] });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email or mobile already in use" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = new User({
+      name,
+      email,
+      mobile,
+      password: hashedPassword,
+      role: role || "admin",
+      emailVerified: true, // Admins created by super-admin are pre-verified
+      mobileVerified: true,
+    });
+
+    await user.save();
+    res.status(201).json({
+      message: "Admin created successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Seed Master Admin (to be called on startup or via script)
+exports.seedMasterAdmin = async () => {
+  try {
+    const adminExists = await User.findOne({ email: "admin" });
+    if (!adminExists) {
+      const hashedPassword = await bcrypt.hash("admin123", 10);
+      const masterAdmin = new User({
+        name: "Master Admin",
+        email: "admin",
+        mobile: "0000000000",
+        password: hashedPassword,
+        role: "super-admin",
+        emailVerified: true,
+        mobileVerified: true,
+      });
+      await masterAdmin.save();
+      console.log("[Seeding] Master Admin created (admin / admin123)");
+    }
+  } catch (err) {
+    console.error("[Seeding] Error seeding Master Admin:", err);
+  }
+};
+
+// Get all staff/admins
+exports.getStaff = async (req, res, next) => {
+  try {
+    const staff = await User.find({ role: { $in: ["admin", "super-admin"] } }).select("-password");
+    res.json({ success: true, count: staff.length, data: staff });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Get customers for admin order creation
+exports.getCustomers = async (req, res, next) => {
+  try {
+    const customers = await User.find({ role: "user" })
+      .select("name email mobile profile")
+      .sort({ name: 1 });
+    res.json({ success: true, count: customers.length, data: customers });
+  } catch (err) {
+    next(err);
+  }
+};

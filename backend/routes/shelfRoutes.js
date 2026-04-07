@@ -1,10 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const shelfController = require("../controllers/shelfController");
-const auth = require("../middlewares/authMiddleware");
+const { protect } = require("../middlewares/authMiddleware");
 
 // All routes protected
-router.use(auth);
+router.use(protect);
 
 // Create shelf (admin/worker)
 router.post("/", shelfController.createShelf);

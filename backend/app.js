@@ -16,36 +16,34 @@ const reportRoutes = require("./routes/reportRoutes");
 
 const app = express();
 
-// CORS must run before any other middleware to properly handle preflight
 app.use(cors(corsOptions));
-// Handle preflight for all routes (Express 5 compatible)
 app.options(/.*/, cors(corsOptions));
 
-// Security Middleware
 app.use(securityMiddleware);
 
-// Body parsing middleware with size limits
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// MongoDB Connection
 mongoose
   .connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("MongoDB connected"))
+  .then(() => {
+    console.log("MongoDB connected");
+    // Seed master admin
+    const { seedMasterAdmin } = require("./controllers/authController");
+    seedMasterAdmin();
+  })
   .catch((err) => {
     console.error("MongoDB connection error details:", err);
-    process.exit(1); // Optional: Exit if DB connection fails in production
+    process.exit(1);
   });
 
-// Basic route
 app.get("/", (req, res) => {
   res.send("TrackMyLaundry API is running");
 });
 
-// Health check endpoint
 app.get("/health", (req, res) => {
   res.json({
     status: "OK",
@@ -54,7 +52,6 @@ app.get("/health", (req, res) => {
   });
 });
 
-// API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/shelves", shelfRoutes);
@@ -63,8 +60,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/rewards", rewardRoutes);
 app.use("/api/reports", reportRoutes);
 
-// Error handling middleware
-app.use(cors(corsOptions)); // Ensure CORS headers on errors
+app.use(cors(corsOptions));
 app.use((err, req, res, next) => {
   console.error("[Error Handler]", err.stack);
   res.status(500).json({
@@ -76,7 +72,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
 });

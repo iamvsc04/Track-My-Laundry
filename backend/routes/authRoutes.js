@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const authController = require("../controllers/authController");
-const auth = require("../middlewares/authMiddleware");
+const { protect, admin, superAdmin } = require("../middlewares/authMiddleware");
 
 router.post("/register", authController.register);
 router.post("/login", authController.login);
@@ -15,11 +15,14 @@ router.post(
   "/resend-verification-email",
   authController.resendVerificationEmail
 );
-
 // Protected routes
-router.get("/profile", auth, authController.getProfile);
-router.put("/profile", auth, authController.updateProfile);
-router.put("/change-password", auth, authController.changePassword);
-router.put("/notification-preferences", auth, authController.updateNotificationPreferences);
+router.get("/profile", protect, authController.getProfile);
+router.put("/profile", protect, authController.updateProfile);
+router.put("/change-password", protect, authController.changePassword);
+router.put("/notification-preferences", protect, authController.updateNotificationPreferences);
+
+router.post("/create-admin", protect, superAdmin, authController.createAdmin);
+router.get("/staff", protect, admin, authController.getStaff);
+router.get("/customers", protect, admin, authController.getCustomers);
 
 module.exports = router;
